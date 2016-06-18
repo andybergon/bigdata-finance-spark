@@ -53,4 +53,28 @@ public class KafkaConnector {
 		return messages;
 	}
 
+	public JavaStreamingContext getJssc() {
+		return jssc;
+	}
+
+	public void setJssc(JavaStreamingContext jssc) {
+		this.jssc = jssc;
+	}
+
+	public Map<String, String> getKafkaParams() {
+		return kafkaParams;
+	}
+
+	public void setKafkaParams(Map<String, String> kafkaParams) {
+		this.kafkaParams = kafkaParams;
+	}
+
+	public Set<String> getTopicsSet() {
+		return topicsSet;
+	}
+
+	public void setTopicsSet(Set<String> topicsSet) {
+		this.topicsSet = topicsSet;
+	}
+	
 }

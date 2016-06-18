@@ -16,6 +16,10 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.mllib.clustering.StreamingKMeans;
+import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.Time;
@@ -40,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.himyd.finance.yahoo.Stock;
 import it.himyd.spark.kafka.KafkaConnector;
+import it.himyd.spark.kmeans.KMeansExample;
+import it.himyd.spark.kmeans.KMeansStreaming;
 import it.himyd.stock.StockSample;
 import kafka.serializer.StringDecoder;
 
@@ -62,6 +68,10 @@ public class SparkStockAnalytics {
 
 		KafkaConnector kc = new KafkaConnector(jssc);
 		JavaPairInputDStream<String, String> messages = kc.getStream();
+
+
+
+		// KMeansExample km = new KMeansExample(jssc);
 
 		// messages.print();
 		// messages.foreach(System.out.println(line));
@@ -97,8 +107,56 @@ public class SparkStockAnalytics {
 		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
 		stocks.print();
 
-		/* start cassandra working */
 		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
+
+
+		JavaDStream<Vector> trainingData = sampleStocks.map(new Function<StockSample, Vector>() {
+			private static final long serialVersionUID = 1L;
+
+			public Vector call(StockSample s) {
+				double[] values = new double[2];
+				values[0] = s.getPrice();
+				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+				return Vectors.dense(values);
+			}
+
+		});
+
+		trainingData.cache();
+		// System.out.println("train " + trainingData.count());
+		
+	    JavaDStream<LabeledPoint> testData = sampleStocks.map(new Function<StockSample, LabeledPoint>() {
+			public LabeledPoint call(StockSample s) throws Exception {
+				double[] values = new double[2];
+				values[0] = s.getPrice();
+				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+				return new LabeledPoint(1.0, Vectors.dense(values));
+			}
+		});
+
+		StreamingKMeans model = new StreamingKMeans();
+		model.setK(2);
+		// with a=1 all data will be used from the beginning
+		// with a=0 only the most recent data will be used
+		model.setDecayFactor(1.0);
+		model.setRandomCenters(2, 0.0, 0L); // che valori passare?
+		model.trainOn(trainingData);
+
+
+		model.predictOnValues(testData.mapToPair(new PairFunction<LabeledPoint, Double, Vector>() {
+			private static final long serialVersionUID = 1L;
+
+			public Tuple2<Double, Vector> call(LabeledPoint arg0) throws Exception {
+				return new Tuple2<Double, Vector>(arg0.label(), arg0.features());
+			}
+		})).print();
+
+
+		// KMeansStreaming kms = new KMeansStreaming(jssc);
+		// kms.clusterStocks(sampleStocks);
+
+
+		/* start cassandra working */
 		// javaFunctions(sampleStocks).writerBuilder("finance", "stocks",
 		// mapToRow(StockSample.class))
 		// .saveToCassandra();
@@ -129,49 +187,44 @@ public class SparkStockAnalytics {
 		// StringUtils.join(cassandraRowsRDD.take(1), "\n")
 		// System.out.println("Data as CassandraRows: \n" + cassandraRowsRDD.count());
 
-		JavaPairDStream<String, Double> avg = stocks.mapToPair(new AverageMap())
-				.reduceByKeyAndWindow(new AverageReduce(), WINDOW_DURATION, SLIDE_DURATION)
-				.mapToPair(new AverageMap2());
-		// avg.print();
 
-		// JavaPairDStream<String,Double> avg = messages
-		// .mapToPair(new AverageMap())
-		// .reduceByKeyAndWindow(new AverageReduce(), Durations.seconds(10), Durations.seconds(5))
-		// .mapToPair(new AverageMap2());
-		// avg.print();
 
-		JavaPairDStream<String, Double> min =
-				stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
-						.reduceByKeyAndWindow((x, y) -> Double.valueOf(x < y ? x : y), WINDOW_DURATION, SLIDE_DURATION);
-		// min.print();
-
-		JavaPairDStream<String, Double> max =
-				stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
-						.reduceByKeyAndWindow((x, y) -> Double.valueOf(x > y ? x : y), WINDOW_DURATION, SLIDE_DURATION);
-		// max.print();
-
-		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
-
-		JavaPairDStream<String, Stock> newestStock =
-				symbolStock
-						.reduceByKeyAndWindow(
-								(x, y) -> (x.getQuote().getLastTradeTime()
-										.compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
-								WINDOW_DURATION, SLIDE_DURATION);
-
-		JavaPairDStream<String, Stock> oldestStock =
-				symbolStock
-						.reduceByKeyAndWindow(
-								(x, y) -> (x.getQuote().getLastTradeTime()
-										.compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
-								WINDOW_DURATION, SLIDE_DURATION);
-
-		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
-
-		JavaPairDStream<String, Double> percentageVariation =
-				join.mapToPair(line -> new Tuple2<>(line._1(), line._2()._1().getQuote().getPrice().doubleValue()
-						/ line._2()._2().getQuote().getPrice().doubleValue()));
-		percentageVariation.print();
+		/*
+		 * JavaPairDStream<String, Double> avg = stocks.mapToPair(new AverageMap())
+		 * .reduceByKeyAndWindow(new AverageReduce(), WINDOW_DURATION, SLIDE_DURATION)
+		 * .mapToPair(new AverageMap2()); // avg.print();
+		 * 
+		 * // JavaPairDStream<String,Double> avg = messages // .mapToPair(new AverageMap()) //
+		 * .reduceByKeyAndWindow(new AverageReduce(), Durations.seconds(10), Durations.seconds(5))
+		 * // .mapToPair(new AverageMap2()); // avg.print();
+		 * 
+		 * JavaPairDStream<String, Double> min = stocks.mapToPair(stock -> new
+		 * Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
+		 * .reduceByKeyAndWindow((x, y) -> Double.valueOf(x < y ? x : y), WINDOW_DURATION,
+		 * SLIDE_DURATION); // min.print();
+		 * 
+		 * JavaPairDStream<String, Double> max = stocks.mapToPair(stock -> new
+		 * Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
+		 * .reduceByKeyAndWindow((x, y) -> Double.valueOf(x > y ? x : y), WINDOW_DURATION,
+		 * SLIDE_DURATION); // max.print();
+		 * 
+		 * JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new
+		 * Tuple2<>(stock.getSymbol(), stock));
+		 * 
+		 * JavaPairDStream<String, Stock> newestStock = symbolStock .reduceByKeyAndWindow( (x, y) ->
+		 * (x.getQuote().getLastTradeTime() .compareTo(y.getQuote().getLastTradeTime()) > 0 ? x :
+		 * y), WINDOW_DURATION, SLIDE_DURATION);
+		 * 
+		 * JavaPairDStream<String, Stock> oldestStock = symbolStock .reduceByKeyAndWindow( (x, y) ->
+		 * (x.getQuote().getLastTradeTime() .compareTo(y.getQuote().getLastTradeTime()) < 0 ? x :
+		 * y), WINDOW_DURATION, SLIDE_DURATION);
+		 * 
+		 * JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
+		 * 
+		 * JavaPairDStream<String, Double> percentageVariation = join.mapToPair(line -> new
+		 * Tuple2<>(line._1(), line._2()._1().getQuote().getPrice().doubleValue() /
+		 * line._2()._2().getQuote().getPrice().doubleValue())); percentageVariation.print();
+		 */
 
 		jssc.start();
 		jssc.awaitTermination();
