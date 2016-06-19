@@ -147,19 +147,19 @@ public class SparkStockAnalytics {
 //				return new LabeledPoint(1.0, Vectors.dense(values));
 //			}
 //		});
-	    JavaDStream<LabeledPoint> testData = stocks.map(new Function<Stock, LabeledPoint>() {
-			public LabeledPoint call(Stock s) throws Exception {
+	    JavaDStream<Tuple2<String, Vector>> testData = stocks.map(new Function<Stock, Tuple2<String, Vector>>() {
+			public Tuple2<String, Vector> call(Stock s) throws Exception {
 				double[] values = new double[2];
 				values[0] = s.getQuote().getPrice().doubleValue();
 				values[1] = (double) s.getQuote().getVolume();
 				//values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
 				//values[3] = s.getQuote().getDayLow().doubleValue();
-				return new LabeledPoint(1.0, Vectors.dense(values));
+				return new Tuple2(s.getSymbol(), Vectors.dense(values));
 			}
 		});
 
 		StreamingKMeans model = new StreamingKMeans();
-		model.setK(2);
+		model.setK(5);
 		// with a=1 all data will be used from the beginning
 		// with a=0 only the most recent data will be used
 		model.setDecayFactor(1.0);
@@ -167,11 +167,17 @@ public class SparkStockAnalytics {
 		model.trainOn(trainingData);
 
 
-		model.predictOnValues(testData.mapToPair(new PairFunction<LabeledPoint, Double, Vector>() {
+		model.predictOnValues(testData.mapToPair(new PairFunction<Tuple2<String, Vector>, String, Vector>() {
 			private static final long serialVersionUID = 1L;
 
-			public Tuple2<Double, Vector> call(LabeledPoint arg0) throws Exception {
-				return new Tuple2<Double, Vector>(arg0.label(), arg0.features());
+			public Tuple2<String, Vector> call(LabeledPoint arg0) throws Exception {
+				return new Tuple2<String, Vector>("ciao", arg0.features());
+			}
+
+			@Override
+			public Tuple2<String, Vector> call(Tuple2<String, Vector> t) throws Exception {
+				// TODO Auto-generated method stub
+				return new Tuple2<String, Vector>(t._1, t._2());
 			}
 		})).print();
 		
