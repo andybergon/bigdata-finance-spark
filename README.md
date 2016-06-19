@@ -9,7 +9,7 @@ spark-submit \
  --master local[4]
  
  
- spark-submit --class "it.himyd.spark.kmeans.KMeansExample" --master local[4] ~/git/bigdata-finance-spark/target/finance-spark-from-kafka-0.0.1-SNAPSHOT.jar
+spark-submit --class "it.himyd.spark.SparkStockAnalytics" --master local[4] ~/git/bigdata-finance-spark/target/finance-spark-from-kafka-0.0.1-SNAPSHOT.jar
 ```
  
  potrebbero servire i parametri (con altri package ovviamente):

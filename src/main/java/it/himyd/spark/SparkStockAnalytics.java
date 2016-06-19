@@ -107,16 +107,30 @@ public class SparkStockAnalytics {
 		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
 		stocks.print();
 
-		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
-
-
-		JavaDStream<Vector> trainingData = sampleStocks.map(new Function<StockSample, Vector>() {
+//		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
+//
+//
+//		JavaDStream<Vector> trainingData = sampleStocks.map(new Function<StockSample, Vector>() {
+//			private static final long serialVersionUID = 1L;
+//
+//			public Vector call(StockSample s) {
+//				double[] values = new double[2];
+//				values[0] = s.getPrice();
+//				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+//				return Vectors.dense(values);
+//			}
+//
+//		});
+		
+		JavaDStream<Vector> trainingData = stocks.map(new Function<Stock, Vector>() {
 			private static final long serialVersionUID = 1L;
 
-			public Vector call(StockSample s) {
+			public Vector call(Stock s) {
 				double[] values = new double[2];
-				values[0] = s.getPrice();
-				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+				values[0] = s.getQuote().getPrice().doubleValue();
+				values[1] = (double) s.getQuote().getVolume();
+				//values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
+				//values[3] = s.getQuote().getDayLow().doubleValue();
 				return Vectors.dense(values);
 			}
 
@@ -125,11 +139,21 @@ public class SparkStockAnalytics {
 		trainingData.cache();
 		// System.out.println("train " + trainingData.count());
 		
-	    JavaDStream<LabeledPoint> testData = sampleStocks.map(new Function<StockSample, LabeledPoint>() {
-			public LabeledPoint call(StockSample s) throws Exception {
+//	    JavaDStream<LabeledPoint> testData = sampleStocks.map(new Function<StockSample, LabeledPoint>() {
+//			public LabeledPoint call(StockSample s) throws Exception {
+//				double[] values = new double[2];
+//				values[0] = s.getPrice();
+//				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+//				return new LabeledPoint(1.0, Vectors.dense(values));
+//			}
+//		});
+	    JavaDStream<LabeledPoint> testData = stocks.map(new Function<Stock, LabeledPoint>() {
+			public LabeledPoint call(Stock s) throws Exception {
 				double[] values = new double[2];
-				values[0] = s.getPrice();
-				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+				values[0] = s.getQuote().getPrice().doubleValue();
+				values[1] = (double) s.getQuote().getVolume();
+				//values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
+				//values[3] = s.getQuote().getDayLow().doubleValue();
 				return new LabeledPoint(1.0, Vectors.dense(values));
 			}
 		});
@@ -150,7 +174,9 @@ public class SparkStockAnalytics {
 				return new Tuple2<Double, Vector>(arg0.label(), arg0.features());
 			}
 		})).print();
-
+		
+	       // System.out.println("cluster "+model.predictOn(trainingData));
+	    
 
 		// KMeansStreaming kms = new KMeansStreaming(jssc);
 		// kms.clusterStocks(sampleStocks);
