@@ -56,6 +56,8 @@ public class SparkStockAnalytics {
 
 	private final static Duration WINDOW_DURATION = Durations.seconds(60);
 	private final static Duration SLIDE_DURATION = Durations.seconds(10);
+	
+	public final static int CLUSTERING_FEATURE_NUMBER = 3;
 
 	public static void main(String s[]) throws Exception {
 
@@ -107,16 +109,17 @@ public class SparkStockAnalytics {
 		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
 		stocks.print();
 
-//		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
-//
-//
+		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
+
+
 //		JavaDStream<Vector> trainingData = sampleStocks.map(new Function<StockSample, Vector>() {
 //			private static final long serialVersionUID = 1L;
 //
 //			public Vector call(StockSample s) {
-//				double[] values = new double[2];
+//				double[] values = new double[3];
 //				values[0] = s.getPrice();
 //				values[1] = s.getTrade_timestamp().getTimezoneOffset();
+//				values[2] = s.getPrice();
 //				return Vectors.dense(values);
 //			}
 //
@@ -126,10 +129,11 @@ public class SparkStockAnalytics {
 			private static final long serialVersionUID = 1L;
 
 			public Vector call(Stock s) {
-				double[] values = new double[2];
+				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
 				values[0] = s.getQuote().getPrice().doubleValue();
 				values[1] = (double) s.getQuote().getVolume();
-				//values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
+//				System.out.println(s.getQuote().getDayHigh().doubleValue());
+				values[2] = s.getQuote().getDayHigh().doubleValue();
 				//values[3] = s.getQuote().getDayLow().doubleValue();
 				return Vectors.dense(values);
 			}
@@ -141,18 +145,19 @@ public class SparkStockAnalytics {
 		
 //	    JavaDStream<LabeledPoint> testData = sampleStocks.map(new Function<StockSample, LabeledPoint>() {
 //			public LabeledPoint call(StockSample s) throws Exception {
-//				double[] values = new double[2];
+//				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
 //				values[0] = s.getPrice();
 //				values[1] = s.getTrade_timestamp().getTimezoneOffset();
 //				return new LabeledPoint(1.0, Vectors.dense(values));
 //			}
 //		});
+		
 	    JavaDStream<Tuple2<String, Vector>> testData = stocks.map(new Function<Stock, Tuple2<String, Vector>>() {
 			public Tuple2<String, Vector> call(Stock s) throws Exception {
-				double[] values = new double[2];
+				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
 				values[0] = s.getQuote().getPrice().doubleValue();
 				values[1] = (double) s.getQuote().getVolume();
-				//values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
+				values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
 				//values[3] = s.getQuote().getDayLow().doubleValue();
 				return new Tuple2(s.getSymbol(), Vectors.dense(values));
 			}
@@ -163,7 +168,7 @@ public class SparkStockAnalytics {
 		// with a=1 all data will be used from the beginning
 		// with a=0 only the most recent data will be used
 		model.setDecayFactor(1.0);
-		model.setRandomCenters(2, 0.0, 0L); // che valori passare?
+		model.setRandomCenters(CLUSTERING_FEATURE_NUMBER, 0.0, 0L); // che valori passare?
 		model.trainOn(trainingData);
 
 
