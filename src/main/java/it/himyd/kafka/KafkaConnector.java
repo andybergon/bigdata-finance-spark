@@ -1,4 +1,4 @@
-package it.himyd.spark.kafka;
+package it.himyd.kafka;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -76,5 +76,5 @@ public class KafkaConnector {
 	public void setTopicsSet(Set<String> topicsSet) {
 		this.topicsSet = topicsSet;
 	}
-	
+
 }

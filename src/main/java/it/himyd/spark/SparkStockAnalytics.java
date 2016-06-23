@@ -1,53 +1,18 @@
 package it.himyd.spark;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.lang.StringUtils;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.mllib.clustering.StreamingKMeans;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
-import org.apache.spark.streaming.kafka.KafkaUtils;
-
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
-import com.datastax.spark.connector.japi.CassandraRow;
-import com.datastax.spark.connector.streaming.*;
-import com.datastax.spark.connector.writer.RowWriterFactory;
-
-import com.datastax.spark.connector.japi.CassandraRow;
-import static com.datastax.spark.connector.japi.CassandraStreamingJavaUtil.*;
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.*;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import it.himyd.analysis.AnalysisRunner;
 import it.himyd.finance.yahoo.Stock;
-import it.himyd.spark.kafka.KafkaConnector;
-import it.himyd.spark.kmeans.KMeansExample;
-import it.himyd.spark.kmeans.KMeansStreaming;
-import it.himyd.stock.StockSample;
-import kafka.serializer.StringDecoder;
+import it.himyd.kafka.KafkaConnector;
+import it.himyd.spark.ml.clustering.StockClusterer;
 
 import scala.Tuple2;
 
@@ -56,7 +21,7 @@ public class SparkStockAnalytics {
 
 	private final static Duration WINDOW_DURATION = Durations.seconds(60);
 	private final static Duration SLIDE_DURATION = Durations.seconds(10);
-	
+
 	public final static int CLUSTERING_FEATURE_NUMBER = 3;
 
 	public static void main(String s[]) throws Exception {
@@ -70,155 +35,17 @@ public class SparkStockAnalytics {
 
 		KafkaConnector kc = new KafkaConnector(jssc);
 		JavaPairInputDStream<String, String> messages = kc.getStream();
+		messages.print();
 
+		AnalysisRunner ar = new AnalysisRunner();
+		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
+		// stocks.print();
 
+		// JavaDStream<StockSample> sampleStocks = ar.convertStockToStockSample(stocks);
+		// sampleStocks.print();
 
-		// KMeansExample km = new KMeansExample(jssc);
-
-		// messages.print();
-		// messages.foreach(System.out.println(line));
-
-		// messages.foreachRDD(rdd -> {
-		// System.out.println("--- New RDD with " + rdd.partitions().size()
-		// + " partitions and " + rdd.count() + " records");
-		// rdd.foreach(record -> System.out.println(record._2));
-		// });
-
-		// ObjectMapper mapper = new ObjectMapper();
-
-		// JavaDStream<Stock> messagesSplitted = messages.flatMap(new FlatMapFunction<Tuple2<String,
-		// String>, Stock>() {
-		// private static final long serialVersionUID = 1L;
-		//
-		// @Override
-		// public Iterable<Stock> call(Tuple2<String, String> t) throws Exception {
-		// Map<String, String> map = mapper.readValue(t._2(), new
-		// TypeReference<Map<String,Object>>(){});
-		// List<Stock> stocks = new ArrayList<Stock>();
-		// for(String stockString : map.values()) {
-		// stocks.add(Stock.fromJSONString(stockString));
-		// }
-		//
-		// return stocks;
-		// }
-		// });
-		// messagesSplitted.print();
-
-
-
-		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
-		stocks.print();
-
-		JavaDStream<StockSample> sampleStocks = stocks.map(stock -> new StockSample(stock));
-
-
-//		JavaDStream<Vector> trainingData = sampleStocks.map(new Function<StockSample, Vector>() {
-//			private static final long serialVersionUID = 1L;
-//
-//			public Vector call(StockSample s) {
-//				double[] values = new double[3];
-//				values[0] = s.getPrice();
-//				values[1] = s.getTrade_timestamp().getTimezoneOffset();
-//				values[2] = s.getPrice();
-//				return Vectors.dense(values);
-//			}
-//
-//		});
-		
-		JavaDStream<Vector> trainingData = stocks.map(new Function<Stock, Vector>() {
-			private static final long serialVersionUID = 1L;
-
-			public Vector call(Stock s) {
-				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
-				values[0] = s.getQuote().getPrice().doubleValue();
-				values[1] = (double) s.getQuote().getVolume();
-//				System.out.println(s.getQuote().getDayHigh().doubleValue());
-				values[2] = s.getQuote().getDayHigh().doubleValue();
-				//values[3] = s.getQuote().getDayLow().doubleValue();
-				return Vectors.dense(values);
-			}
-
-		});
-
-		trainingData.cache();
-		// System.out.println("train " + trainingData.count());
-		
-//	    JavaDStream<LabeledPoint> testData = sampleStocks.map(new Function<StockSample, LabeledPoint>() {
-//			public LabeledPoint call(StockSample s) throws Exception {
-//				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
-//				values[0] = s.getPrice();
-//				values[1] = s.getTrade_timestamp().getTimezoneOffset();
-//				return new LabeledPoint(1.0, Vectors.dense(values));
-//			}
-//		});
-		
-	    JavaDStream<Tuple2<String, Vector>> testData = stocks.map(new Function<Stock, Tuple2<String, Vector>>() {
-			public Tuple2<String, Vector> call(Stock s) throws Exception {
-				double[] values = new double[CLUSTERING_FEATURE_NUMBER];
-				values[0] = s.getQuote().getPrice().doubleValue();
-				values[1] = (double) s.getQuote().getVolume();
-				values[2] = 0.5;//s.getQuote().getDayHigh().doubleValue();
-				//values[3] = s.getQuote().getDayLow().doubleValue();
-				return new Tuple2(s.getSymbol(), Vectors.dense(values));
-			}
-		});
-
-		StreamingKMeans model = new StreamingKMeans();
-		model.setK(5);
-		// with a=1 all data will be used from the beginning
-		// with a=0 only the most recent data will be used
-		model.setDecayFactor(1.0);
-		model.setRandomCenters(CLUSTERING_FEATURE_NUMBER, 0.0, 0L); // che valori passare?
-		model.trainOn(trainingData);
-
-
-		model.predictOnValues(testData.mapToPair(new PairFunction<Tuple2<String, Vector>, String, Vector>() {
-			private static final long serialVersionUID = 1L;
-			@Override
-			public Tuple2<String, Vector> call(Tuple2<String, Vector> t) throws Exception {
-				// TODO Auto-generated method stub
-				return new Tuple2<String, Vector>(t._1, t._2());
-			}
-		})).print();
-		
-	       // System.out.println("cluster "+model.predictOn(trainingData));
-	    
-
-		// KMeansStreaming kms = new KMeansStreaming(jssc);
-		// kms.clusterStocks(sampleStocks);
-
-
-		/* start cassandra working */
-		// javaFunctions(sampleStocks).writerBuilder("finance", "stocks",
-		// mapToRow(StockSample.class))
-		// .saveToCassandra();
-
-		/* end cassandra working */
-
-
-
-		// JavaRDD<StockSample> sampleStockRDD = sampleStocks.compute(new Time(60*1000));
-		// javaFunctions(sampleStockRDD).writerBuilder("finance", "stocks",
-		// mapToRow(StockSample.class)).saveToCassandra();
-
-		// CassandraJavaUtil.mapToRow(StockSample.class)
-		// RowWriterFactory<StockSample> rowWriterFactory
-		// javaFunctions(sampleStocks).writerBuilder("finance", "stocks",
-		// rowWriterFactory).saveToCassandra();
-
-		// javaFunctions(sampleStockRDD, StockSample.class);
-
-		// JavaRDD<String> cassandraRowsRDD = javaFunctions(jssc).cassandraTable("finance",
-		// "stocks").map(new Function<CassandraRow, String>() {
-		// @Override
-		// public String call(CassandraRow cassandraRow) throws Exception {
-		// return cassandraRow.toString();
-		// }
-		// });
-
-		// StringUtils.join(cassandraRowsRDD.take(1), "\n")
-		// System.out.println("Data as CassandraRows: \n" + cassandraRowsRDD.count());
-
+		StockClusterer kms = new StockClusterer();
+		kms.clusterStocks(stocks).print();
 
 
 		/*

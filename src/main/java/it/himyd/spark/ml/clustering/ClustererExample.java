@@ -1,4 +1,4 @@
-package it.himyd.spark.kmeans;
+package it.himyd.spark.ml.clustering;
 
 import org.apache.spark.api.java.*;
 import org.apache.spark.api.java.function.Function;
@@ -8,7 +8,7 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.SparkConf;
 
-public class KMeansExample {
+public class ClustererExample {
 	public static void main(String[] args) {
 		SparkConf conf = new SparkConf().setAppName("K-means Example");
 		JavaSparkContext sc = new JavaSparkContext(conf);
