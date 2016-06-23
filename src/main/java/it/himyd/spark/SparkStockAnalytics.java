@@ -174,11 +174,6 @@ public class SparkStockAnalytics {
 
 		model.predictOnValues(testData.mapToPair(new PairFunction<Tuple2<String, Vector>, String, Vector>() {
 			private static final long serialVersionUID = 1L;
-
-			public Tuple2<String, Vector> call(LabeledPoint arg0) throws Exception {
-				return new Tuple2<String, Vector>("ciao", arg0.features());
-			}
-
 			@Override
 			public Tuple2<String, Vector> call(Tuple2<String, Vector> t) throws Exception {
 				// TODO Auto-generated method stub
