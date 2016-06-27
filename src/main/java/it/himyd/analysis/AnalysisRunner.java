@@ -1,10 +1,13 @@
 package it.himyd.analysis;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.Duration;
@@ -18,9 +21,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.himyd.finance.yahoo.Stock;
 import it.himyd.stock.StockSample;
+import it.himyd.stock.StockVariation;
 import scala.Tuple2;
 
-public class AnalysisRunner {
+public class AnalysisRunner implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private final static Duration WINDOW_DURATION = Durations.seconds(60);
 	private final static Duration SLIDE_DURATION = Durations.seconds(10);
 
@@ -170,6 +177,52 @@ public class AnalysisRunner {
 		});
 
 		return messagesSplitted;
+	}
+
+	public JavaDStream<StockVariation> percentageVariation(JavaDStream<Stock> stocks) {
+		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
+
+		JavaPairDStream<String, Stock> newestStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
+				WINDOW_DURATION, SLIDE_DURATION);
+
+		JavaPairDStream<String, Stock> oldestStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
+				WINDOW_DURATION, SLIDE_DURATION);
+
+		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
+
+		JavaDStream<StockVariation> percentageVariation = join
+				.map(new Function<Tuple2<String, Tuple2<Stock, Stock>>, StockVariation>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public StockVariation call(Tuple2<String, Tuple2<Stock, Stock>> t) throws Exception {
+						String name;
+						Date time;
+						Double priceVariation;
+						Double volumeVariation;
+
+						name = t._1();
+						time = t._2()._1().getQuote().getLastTradeTime().getTime();
+						priceVariation = t._2()._1().getQuote().getPrice().doubleValue()
+								/ t._2()._2().getQuote().getPrice().doubleValue();
+						volumeVariation = (double) (t._2()._1().getQuote().getVolume()
+								/ t._2()._2().getQuote().getVolume());
+
+						priceVariation = priceVariation - 1;
+						volumeVariation = volumeVariation - 1;
+
+						StockVariation sv = new StockVariation(name, time, priceVariation, volumeVariation);
+
+						return sv;
+					}
+
+				});
+
+		return percentageVariation;
+
 	}
 
 }

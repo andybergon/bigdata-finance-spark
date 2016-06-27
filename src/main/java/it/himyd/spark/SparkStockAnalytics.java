@@ -12,6 +12,7 @@ import it.himyd.analysis.AnalysisRunner;
 import it.himyd.finance.yahoo.Stock;
 import it.himyd.kafka.KafkaConnector;
 import it.himyd.spark.ml.clustering.StockClusterer;
+import it.himyd.stock.StockVariation;
 
 public class SparkStockAnalytics {
 	private final static Duration BATCH_DURATION = Durations.seconds(1);
@@ -43,11 +44,11 @@ public class SparkStockAnalytics {
 		// StockClusterer kms = new StockClusterer();
 		// kms.clusterStocks(stocks).print();
 
-		JavaPairDStream<String, Double> average = ar.average(stocks);
+		// JavaPairDStream<String, Double> average = ar.average(stocks);
 		// average.print();
 
-		JavaPairDStream<String, Double> percentage = ar.percentagePriceVariation(stocks);
-		percentage.print();
+		JavaDStream<StockVariation> variation = ar.percentageVariation(stocks);
+		variation.print();
 
 		jssc.start();
 		jssc.awaitTermination();
