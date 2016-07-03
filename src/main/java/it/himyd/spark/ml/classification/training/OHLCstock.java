@@ -86,12 +86,8 @@ public class OHLCstock {
 		String mm = day.substring(4, 6);
 		String dd = day.substring(6, 8);
 
-		// System.out.println(Integer.valueOf(yyyy));
-		// System.out.println(Integer.valueOf(mm));
-		// System.out.println(Integer.valueOf(dd));
-
-		date.setYear(Integer.valueOf(yyyy));
-		date.setMonth(Integer.valueOf(mm));
+		date.setYear(Integer.valueOf(yyyy) - 1900);
+		date.setMonth(Integer.valueOf(mm) - 1);
 		date.setDate((Integer.valueOf(dd)));
 
 		Integer hour = (Integer.valueOf(time.split(":")[0]));

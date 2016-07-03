@@ -65,11 +65,11 @@ public class StockClassifierStreaming {
 		JavaStreamingContext jssc = new JavaStreamingContext(conf, BATCH_DURATION);
 
 		// RIPORTA
-		jssc.checkpoint(".");
-		
+		jssc.checkpoint("checkpoint");
+
 		KafkaConnector kc = new KafkaConnector(jssc);
 		JavaPairInputDStream<String, String> messages = kc.getStream();
-//		messages.print();
+		// messages.print();
 
 		AnalysisRunner ar = new AnalysisRunner();
 		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
@@ -78,112 +78,24 @@ public class StockClassifierStreaming {
 		// variation.print();
 
 		JavaPairDStream<String, StockVariation> variationPair = ar.percentageVariationPair(stocks);
-//		variationPair.print();
+		variationPair.print();
 
-		List<Tuple2<String,StockVariation>> tupleList = new ArrayList<>();
-		JavaPairRDD<String, StockVariation> initialRDD = jssc.sparkContext().parallelizePairs(tupleList);
-		// JavaPairDStream<String, Integer> wordsDstream = null;
-
-		Function4<Time,String,Optional<StockVariation>, State<StockVariation>, Optional<StockVariation>> mf = new Function4<Time,String, Optional<StockVariation>, State<StockVariation>, Optional<StockVariation>>() {
-
-			@Override
-			public Optional<StockVariation> call(Time v1, String v2, Optional<StockVariation> v3, State<StockVariation> v4)
-					throws Exception {
-//				System.out.println("+++ " + v3.get().toString());
-				return v3;
-			}
-		};
-		
-		final Function4<Time, String, Optional<StockVariation>, State<StockVariation>,Optional<StockVariation>> mappingFunc = new Function4<Time, String, Optional<StockVariation>, State<StockVariation>,Optional<StockVariation>>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Optional<StockVariation> call(Time time, String label, Optional<StockVariation> one, State<StockVariation> state) {
-				// Use all State's methods here
-//				state.exists();
-//				state.get();
-//				state.isTimingOut();
-//				state.remove();
-//				state.update(one.get());
-				return one;
-			}
-
-		};
-		
-		final Function3<String, Optional<StockVariation>, State<Double>, Tuple2<String,Double>> mappingFunc1 = new Function3<String, Optional<StockVariation>, State<Double>, Tuple2<String,Double>>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Tuple2<String, Double> call(String label, Optional<StockVariation> one, State<Double> state) {
-				// Use all State's methods here
-//				state.exists();
-//				state.get();
-//				state.isTimingOut();
-//				state.remove();
-//				state.update(one.get());
-				
-				double sum = 100;
-				if (state.exists()) {
-//					System.out.println(state.get());
-					sum += state.get();
-				}
-				
-				Tuple2<String, Double> output = new Tuple2<>(one.get().getName(), sum);
-				state.update(sum);
-				return output;
-			}
-
-		};
-
-		StateSpec stateSpec = StateSpec.function(mappingFunc1);
-		stateSpec.initialState(initialRDD);
-		stateSpec.numPartitions(10);
-		stateSpec.partitioner(new HashPartitioner(10));
-		stateSpec.timeout(Durations.seconds(10));
-
-
-		testOperations(variationPair,stateSpec);
-
-
-//		slrModel = new StreamingLogisticRegressionWithSGD();
-//		slrModel.setStepSize(0.5);
-//		slrModel.setNumIterations(10);
-//		slrModel.setInitialWeights(Vectors.zeros(numFeatures));
-//
-//		JavaDStream<LabeledPoint> trainingData = getDStreamTraining(variation);
-//		trainingData.cache();
-//		slrModel.trainOn(trainingData);
-//
-//		JavaDStream<LabeledPoint> testData = getDStreamTraining(variation);
-//
-//		slrModel.predictOn(getDStreamPrediction(testData)).print();
+		// slrModel = new StreamingLogisticRegressionWithSGD();
+		// slrModel.setStepSize(0.5);
+		// slrModel.setNumIterations(10);
+		// slrModel.setInitialWeights(Vectors.zeros(numFeatures));
+		//
+		// JavaDStream<LabeledPoint> trainingData =
+		// getDStreamTraining(variation);
+		// trainingData.cache();
+		// slrModel.trainOn(trainingData);
+		//
+		// JavaDStream<LabeledPoint> testData = getDStreamTraining(variation);
+		//
+		// slrModel.predictOn(getDStreamPrediction(testData)).print();
 
 		jssc.start();
 		jssc.awaitTermination();
-	}
-	
-	private static void testOperations(JavaPairDStream<String, StockVariation> variationPair, StateSpec stateSpec) {
-		
-		JavaMapWithStateDStream<String, StockVariation, StockVariation, Double> stateDstream = variationPair
-				.mapWithState(stateSpec);
-//		stateDstream.print();
-
-		JavaPairDStream<String, StockVariation> stateSnapshots = stateDstream.stateSnapshots();
-		stateSnapshots.print();
-		
-    final List<Set<Tuple2<String, StockVariation>>> collectedStateSnapshots =
-            Collections.synchronizedList(Lists.<Set<Tuple2<String, StockVariation>>>newArrayList());
-    		stateDstream.stateSnapshots().foreachRDD(new Function<JavaPairRDD<String, StockVariation>, Void>() {
-          @Override
-          public Void call(JavaPairRDD<String, StockVariation> rdd) throws Exception {
-            collectedStateSnapshots.add(Sets.newHashSet(rdd.collect()));
-            return null;
-          }
-        });
-    		
-    System.out.println(collectedStateSnapshots.toString());
 	}
 
 	public static JavaDStream<LabeledPoint> getDStreamTraining(JavaDStream<StockVariation> stocks) {

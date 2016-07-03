@@ -21,6 +21,7 @@ public class KafkaConnector {
 	private Set<String> topicsSet;
 
 	public KafkaConnector(JavaStreamingContext jssc) {
+		System.out.println("Setting Kafka Parameters...");
 		this.jssc = jssc;
 
 		this.kafkaParams = new HashMap<String, String>();
