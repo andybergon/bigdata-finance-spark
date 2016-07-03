@@ -8,11 +8,11 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
-import it.himyd.analysis.AnalysisRunner;
-import it.himyd.finance.yahoo.Stock;
 import it.himyd.kafka.KafkaConnector;
+import it.himyd.spark.analysis.AnalysisRunner;
 import it.himyd.spark.ml.clustering.StockClusterer;
 import it.himyd.stock.StockVariation;
+import it.himyd.stock.finance.yahoo.Stock;
 
 public class SparkStockAnalytics {
 	private final static Duration BATCH_DURATION = Durations.seconds(1);

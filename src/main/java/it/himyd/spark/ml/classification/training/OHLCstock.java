@@ -85,24 +85,25 @@ public class OHLCstock {
 		String yyyy = day.substring(0, 4);
 		String mm = day.substring(4, 6);
 		String dd = day.substring(6, 8);
-		
-//		System.out.println(Integer.valueOf(yyyy));
-//		System.out.println(Integer.valueOf(mm));
-//		System.out.println(Integer.valueOf(dd));
-		
+
+		// System.out.println(Integer.valueOf(yyyy));
+		// System.out.println(Integer.valueOf(mm));
+		// System.out.println(Integer.valueOf(dd));
+
 		date.setYear(Integer.valueOf(yyyy));
 		date.setMonth(Integer.valueOf(mm));
 		date.setDate((Integer.valueOf(dd)));
-		
+
 		Integer hour = (Integer.valueOf(time.split(":")[0]));
 		Integer minute = (Integer.valueOf(time.split(":")[1]));
-		
+
 		date.setHours(hour);
 		date.setMinutes(minute);
-		
+		date.setSeconds(0);
+
 		return date;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "OHLCstock [name=" + name + ", date=" + date + ", open=" + open + ", high=" + high + ", low=" + low

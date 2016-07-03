@@ -10,7 +10,7 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 
-import it.himyd.finance.yahoo.Stock;
+import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 
 public class StockClusterer implements Serializable {

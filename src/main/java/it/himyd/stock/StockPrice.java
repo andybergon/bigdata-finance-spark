@@ -2,7 +2,7 @@ package it.himyd.stock;
 
 import java.io.Serializable;
 
-import it.himyd.finance.yahoo.Stock;
+import it.himyd.stock.finance.yahoo.Stock;
 
 /**
  * @author MarcuS

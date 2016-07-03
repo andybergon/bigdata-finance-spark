@@ -3,7 +3,7 @@ package it.himyd.stock;
 import java.io.Serializable;
 import java.util.Date;
 
-import it.himyd.finance.yahoo.Stock;
+import it.himyd.stock.finance.yahoo.Stock;
 
 public class StockSample implements Serializable {
 	private static final long serialVersionUID = 6750153003452580328L;
