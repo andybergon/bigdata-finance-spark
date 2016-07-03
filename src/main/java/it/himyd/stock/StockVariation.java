@@ -55,7 +55,7 @@ public class StockVariation implements Serializable {
 	@Override
 	public String toString() {
 		return "StockVariation [name=" + name + ", time=" + time + ", priceVariation=" + priceVariation
-				+ ", volumeVariation=" + volumeVariation + "]";
+				+ "%, volumeVariation=" + volumeVariation + "%]";
 	}
 
 }

@@ -179,6 +179,58 @@ public class AnalysisRunner implements Serializable {
 		return messagesSplitted;
 	}
 
+	public JavaPairDStream<String, StockVariation> percentageVariationPair(JavaDStream<Stock> stocks) {
+		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
+
+		JavaPairDStream<String, Stock> newestStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
+				WINDOW_DURATION, SLIDE_DURATION);
+
+		JavaPairDStream<String, Stock> oldestStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
+				WINDOW_DURATION, SLIDE_DURATION);
+
+		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
+
+		JavaPairDStream<String, StockVariation> percentageVariation = join
+				.mapToPair(new PairFunction<Tuple2<String, Tuple2<Stock, Stock>>, String, StockVariation>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, StockVariation> call(Tuple2<String, Tuple2<Stock, Stock>> t)
+							throws Exception {
+						String name;
+						Date time;
+						Double priceVariation;
+						Double volumeVariation;
+
+						name = t._1();
+						time = new Date(); // t._2()._1().getQuote().getLastTradeTime().getTime();
+						priceVariation = t._2()._1().getQuote().getPrice().doubleValue()
+								/ t._2()._2().getQuote().getPrice().doubleValue();
+						volumeVariation = (double) (t._2()._1().getQuote().getVolume()
+								/ t._2()._2().getQuote().getVolume());
+						
+						priceVariation = priceVariation - 1;
+						volumeVariation = volumeVariation - 1;
+						
+						if (!volumeVariation.equals(new Double(0))) {
+							System.out.println("1, newest: " + t._2()._1().getQuote().getVolume());
+							System.out.println("2, oldest: " + t._2()._2().getQuote().getVolume());
+						}
+
+						StockVariation sv = new StockVariation(name, time, priceVariation, volumeVariation);
+
+						return new Tuple2<String, StockVariation>(sv.getName(), sv);
+					}
+
+				});
+
+		return percentageVariation;
+
+	}
+
 	public JavaDStream<StockVariation> percentageVariation(JavaDStream<Stock> stocks) {
 		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
 
