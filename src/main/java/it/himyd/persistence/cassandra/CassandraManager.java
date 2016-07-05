@@ -8,6 +8,7 @@ import java.util.Date;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.functions;
 import org.apache.spark.streaming.api.java.JavaDStream;
 
@@ -104,25 +105,25 @@ public class CassandraManager {
 		javaFunctions(clusters).writerBuilder(keyspace, "clusters", mapToRow(StockCluster.class)).saveToCassandra();
 	}
 
-	public JavaRDD<StockCluster> readClusterStocks(SparkContext sc) {
-		SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(sc);
+	public JavaRDD<StockCluster> readClusterStocks(JavaSparkContext jsc) {
+		SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(jsc);
 		RowReaderFactory<StockCluster> rrf = com.datastax.spark.connector.japi.CassandraJavaUtil
 				.mapRowTo(StockCluster.class);
 		JavaRDD<StockCluster> rdd = spjf.cassandraTable(keyspace, "clusters", rrf);
 
 		return rdd;
 	}
-	
-//	public JavaPairRDD<Date,StockCluster> readClusterStocksPair(SparkContext sc) {
-//		SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(sc);
-//		RowReaderFactory<Date> rrfCol = com.datastax.spark.connector.japi.CassandraJavaUtil
-//				.mapColumnTo(Date.class);
-//		RowReaderFactory<StockCluster> rrfRow = com.datastax.spark.connector.japi.CassandraJavaUtil
-//				.mapRowTo(StockCluster.class);
-//		CassandraJavaPairRDD<Date, StockCluster> rdd = spjf.cassandraTable();
-//
-//		return rdd;
-//	}
+
+	// public JavaPairRDD<Date,StockCluster> readClusterStocksPair(SparkContext sc) {
+	// SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(sc);
+	// RowReaderFactory<Date> rrfCol = com.datastax.spark.connector.japi.CassandraJavaUtil
+	// .mapColumnTo(Date.class);
+	// RowReaderFactory<StockCluster> rrfRow = com.datastax.spark.connector.japi.CassandraJavaUtil
+	// .mapRowTo(StockCluster.class);
+	// CassandraJavaPairRDD<Date, StockCluster> rdd = spjf.cassandraTable();
+	//
+	// return rdd;
+	// }
 
 	// NOT WORKING
 
