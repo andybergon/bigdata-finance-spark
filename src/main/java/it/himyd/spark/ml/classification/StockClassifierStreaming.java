@@ -1,5 +1,7 @@
 package it.himyd.spark.ml.classification;
 
+import java.util.HashMap;
+
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
@@ -21,16 +23,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.dstream.MapWithStateDStream;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
-import scala.Option;
-import scala.Tuple2;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -43,20 +35,30 @@ import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.function.Function3;
 import org.apache.spark.api.java.function.Function4;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 
 import it.himyd.kafka.KafkaConnector;
 import it.himyd.spark.analysis.AnalysisRunner;
+import it.himyd.stock.StockOHLC;
 import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
+import scala.Tuple2;
 
 public class StockClassifierStreaming {
-	private final static Duration BATCH_DURATION = Durations.seconds(5);
+	private final static Duration BATCH_DURATION = Durations.seconds(10);
+	private final static int NUM_FEATURES = 2;
+	private final static int NUM_FEATURES_ACT = 3;
 
-	private static StreamingLogisticRegressionWithSGD slrModel;
+	private StreamingLogisticRegressionWithSGD model;
 
-	private static int numFeatures = 2;
+	public StockClassifierStreaming() {
+		model = new StreamingLogisticRegressionWithSGD();
+		model.setStepSize(0.5);
+		model.setNumIterations(10);
+		model.setInitialWeights(Vectors.zeros(NUM_FEATURES_ACT));
+	}
 
 	public static void main(String[] args) {
 		SparkConf conf = new SparkConf().setAppName("SparkStockAnalytics");
@@ -71,55 +73,61 @@ public class StockClassifierStreaming {
 		JavaPairInputDStream<String, String> messages = kc.getStream();
 		// messages.print();
 
+		System.out.println("Starting Analysis...");
 		AnalysisRunner ar = new AnalysisRunner();
+		ar.setSlideDuration(BATCH_DURATION);
 		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
-		// JavaDStream<StockVariation> variation =
-		// ar.percentageVariation(stocks);
-		// variation.print();
 
-		JavaPairDStream<String, StockVariation> variationPair = ar.percentageVariationPair(stocks);
-		variationPair.print();
+		JavaDStream<StockOHLC> ohlc = ar.getOHLC(stocks);
+		// ohlc.print();
 
-		// slrModel = new StreamingLogisticRegressionWithSGD();
-		// slrModel.setStepSize(0.5);
-		// slrModel.setNumIterations(10);
-		// slrModel.setInitialWeights(Vectors.zeros(numFeatures));
-		//
-		// JavaDStream<LabeledPoint> trainingData =
-		// getDStreamTraining(variation);
-		// trainingData.cache();
-		// slrModel.trainOn(trainingData);
-		//
-		// JavaDStream<LabeledPoint> testData = getDStreamTraining(variation);
-		//
-		// slrModel.predictOn(getDStreamPrediction(testData)).print();
+		StockClassifierStreaming classifier = new StockClassifierStreaming();
+		JavaDStream<LabeledPoint> trainingData = getDStreamTrainingActual(ohlc);
+		// trainingData.print();
+		trainingData.cache();
+		classifier.getModel().trainOn(trainingData);
+
+		JavaPairDStream<String, Vector> testData = getDStreamTestActual(ohlc);
+		// testData.print();
+
+		JavaPairDStream<String, Double> predictions = classifier.getModel().predictOnValues(testData);
+		predictions.print();
 
 		jssc.start();
 		jssc.awaitTermination();
 	}
 
-	public static JavaDStream<LabeledPoint> getDStreamTraining(JavaDStream<StockVariation> stocks) {
+	public static JavaDStream<LabeledPoint> getDStreamTrainingActual(JavaDStream<StockOHLC> ohlc) {
 
-		return stocks.map(new Function<StockVariation, LabeledPoint>() {
-
-			private static final long serialVersionUID = 1268686043314386060L;
+		return ohlc.map(new Function<StockOHLC, LabeledPoint>() {
+			private static final long serialVersionUID = 1L;
+			Double scalingFactor = new Double(1);
 
 			@Override
-			public LabeledPoint call(StockVariation sv) throws Exception {
-				// System.out.println("Inside LabeledPoint call : ----- ");
-
+			public LabeledPoint call(StockOHLC stock) throws Exception {
 				Double label;
-				Double pv = sv.getPriceVariation();
-				Double vv = sv.getVolumeVariation();
+				Double percOL = stock.getOpen() / stock.getLow();
+				percOL = (percOL - 1) * 100 * scalingFactor;
+				Double percOH = stock.getOpen() / stock.getHigh();
+				percOH = (percOH - 1) * 100 * scalingFactor;
+				Double percHL = stock.getHigh() / stock.getLow();
+				percHL = (percHL - 1) * 100 * scalingFactor;
+				Double percCO = stock.getClose() / stock.getOpen();
+				percCO = (percCO - 1) * 100;
 
-				double vc[] = new double[numFeatures];
-				vc[0] = pv;
-				vc[1] = vv;
+				double vc[] = new double[NUM_FEATURES_ACT];
+				vc[0] = percOL;
+				vc[1] = percOH;
+				vc[2] = percHL;
 
-				if (pv > 0) {
-					label = new Double(1);
+				if ((percOL == 0) && (percOH == 0) && (percHL == 0)) {
+					label = Math.random() > 0.5 ? new Double(1) : new Double(0);
 				} else {
-					label = new Double(0);
+					if (percCO <= 0) {
+						label = new Double(0);
+					} else {
+						label = new Double(1);
+					}
 				}
 
 				return new LabeledPoint(label, Vectors.dense(vc));
@@ -128,23 +136,116 @@ public class StockClassifierStreaming {
 		});
 	}
 
-	public static JavaDStream<Vector> getDStreamPrediction(JavaDStream<LabeledPoint> lines) {
+	public static JavaPairDStream<String, Vector> getDStreamTestActual(JavaDStream<StockOHLC> stocks) {
 
-		return lines.map(new Function<LabeledPoint, Vector>() {
+		return stocks.mapToPair(new PairFunction<StockOHLC, String, Vector>() {
 
-			private static final long serialVersionUID = 1268686043314386060L;
+			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Vector call(LabeledPoint sv) throws Exception {
-				// Double label;
-				// Double pv = sv.features();
-				// Double vv = sv.getVolumeVariation();
-				//
-				// double vc[] = new double[numFeatures];
-				// vc[0] = pv;
-				// vc[1] = vv;
-				return sv.features();
+			public Tuple2<String, Vector> call(StockOHLC stock) throws Exception {
+				Double percOL = stock.getOpen() / stock.getLow();
+				percOL = (percOL - 1) * 100;
+				Double percOH = stock.getOpen() / stock.getHigh();
+				percOH = (percOH - 1) * 100;
+				Double percHL = stock.getHigh() / stock.getLow();
+				percHL = (percHL - 1) * 100;
+
+				double vc[] = new double[NUM_FEATURES_ACT];
+				vc[0] = percOL;
+				vc[1] = percOH;
+				vc[2] = percHL;
+
+				return new Tuple2<String, Vector>(stock.getSymbol(), Vectors.dense(vc));
 			}
+
+		});
+
+	}
+
+	public static JavaDStream<LabeledPoint> getDStreamTraining(JavaDStream<StockOHLC> ohlc) {
+
+		// TODO: check what map to use, java/scala mutable/scala immutable
+		HashMap<String, StockOHLC> symbol2prevStock = new HashMap<String, StockOHLC>(); // scala mutable
+		HashMap<String, StockOHLC> symbol2currStock = new HashMap<String, StockOHLC>();
+
+		return ohlc.map(new Function<StockOHLC, LabeledPoint>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public LabeledPoint call(StockOHLC stock) throws Exception {
+				Double label, prevCO, prevHL, currCO;
+				StockOHLC prevStock = null;
+				System.out.println(symbol2currStock.keySet());
+
+				if (symbol2currStock.containsKey(stock.getSymbol())) {
+					System.out.println(stock.getSymbol());
+					prevStock = symbol2currStock.get(stock.getSymbol());
+					symbol2prevStock.put(stock.getSymbol(), prevStock);
+				}
+
+				symbol2currStock.put(stock.getSymbol(), stock);
+				// System.out.println(symbol2currStock.keySet());
+
+				if (symbol2prevStock.containsKey(stock.getSymbol())) {
+					System.out.println(stock.getSymbol());
+
+					StockOHLC currStock = stock;
+
+					prevCO = prevStock.getClose() / prevStock.getOpen();
+					prevCO = (prevCO - 1) * 100;
+
+					prevHL = prevStock.getHigh() / prevStock.getLow();
+					prevHL = (prevHL - 1) * 100;
+
+					double vc[] = new double[NUM_FEATURES];
+					vc[0] = prevCO;
+					vc[1] = prevHL;
+
+					currCO = currStock.getClose() / currStock.getOpen();
+					currCO = (currCO - 1) * 100;
+
+					// for now: only up and down. TODO: remain or exact value
+					// can't have 3 cases with this model
+					if (currCO <= 0) {
+						label = 0.0; // down
+					} else {
+						label = 1.0; // up
+					}
+
+					System.out.println(currStock.getTradeTime().getTime() + " - symbol: " + currStock.getSymbol()
+							+ ", prevCO: " + prevCO + ", currCO: " + currCO);
+
+					return new LabeledPoint(label, Vectors.dense(vc));
+				} else {
+					return new LabeledPoint(0, Vectors.dense(new double[] { 0 }));
+				}
+
+			}
+
 		});
 	}
+
+	public static JavaDStream<Vector> getDStreamTest(JavaDStream<Stock> stocks) {
+
+		return stocks.map(new Function<Stock, Vector>() {
+
+			@Override
+			public Vector call(Stock stock) throws Exception {
+
+				return null;
+			}
+
+		});
+
+	}
+
+	public StreamingLogisticRegressionWithSGD getModel() {
+		return this.model;
+	}
+
+	public void setSlrModel(StreamingLogisticRegressionWithSGD model) {
+		this.model = model;
+	}
+
 }

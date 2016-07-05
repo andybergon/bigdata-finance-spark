@@ -41,14 +41,15 @@ public class SparkStockAnalytics {
 		// ar.convertStockToStockSample(stocks);
 		// sampleStocks.print();
 
-		// StockClusterer kms = new StockClusterer();
-		// kms.clusterStocks(stocks).print();
+		 StockClusterer kms = new StockClusterer();
+		 kms.clusterStocks(stocks).print();
 
 		// JavaPairDStream<String, Double> average = ar.average(stocks);
 		// average.print();
 
-		JavaDStream<StockVariation> variation = ar.percentageVariation(stocks);
-		variation.print();
+		// JavaDStream<StockVariation> variation =
+		// ar.percentageVariation(stocks);
+		// variation.print();
 
 		jssc.start();
 		jssc.awaitTermination();

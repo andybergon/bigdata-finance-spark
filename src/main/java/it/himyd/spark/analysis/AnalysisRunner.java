@@ -19,6 +19,7 @@ import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import it.himyd.stock.StockOHLC;
 import it.himyd.stock.StockSample;
 import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
@@ -28,31 +29,77 @@ public class AnalysisRunner implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private final static Duration WINDOW_DURATION = Durations.seconds(60);
-	private final static Duration SLIDE_DURATION = Durations.seconds(10);
+	private Duration windowDuration;
+	private Duration slideDuration;
+
+	public AnalysisRunner() {
+		this.windowDuration = Durations.seconds(60);
+		this.slideDuration = Durations.seconds(10);
+	}
 
 	public JavaPairDStream<String, Double> average(JavaDStream<Stock> stocks) {
 		JavaPairDStream<String, Double> avg = stocks.mapToPair(new AverageMap())
-				.reduceByKeyAndWindow(new AverageReduce(), WINDOW_DURATION, SLIDE_DURATION)
-				.mapToPair(new AverageMap2());
+				.reduceByKeyAndWindow(new AverageReduce(), windowDuration, slideDuration).mapToPair(new AverageMap2());
 
 		return avg;
 	}
 
-	public JavaPairDStream<String, Double> minimum(JavaDStream<Stock> stocks) {
+	public JavaPairDStream<String, Double> low(JavaDStream<Stock> stocks) {
 		JavaPairDStream<String, Double> min = stocks
 				.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
-				.reduceByKeyAndWindow((x, y) -> Double.valueOf(x < y ? x : y), WINDOW_DURATION, SLIDE_DURATION);
+				.reduceByKeyAndWindow((x, y) -> Double.valueOf(x < y ? x : y), windowDuration, slideDuration);
 
 		return min;
 	}
 
-	public JavaPairDStream<String, Double> maximum(JavaDStream<Stock> stocks) {
+	public JavaPairDStream<String, Double> high(JavaDStream<Stock> stocks) {
 		JavaPairDStream<String, Double> max = stocks
 				.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock.getQuote().getPrice().doubleValue()))
-				.reduceByKeyAndWindow((x, y) -> Double.valueOf(x > y ? x : y), WINDOW_DURATION, SLIDE_DURATION);
+				.reduceByKeyAndWindow((x, y) -> Double.valueOf(x > y ? x : y), windowDuration, slideDuration);
 
 		return max;
+	}
+
+	public JavaPairDStream<String, Double> open(JavaDStream<Stock> stocks) {
+		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
+
+		JavaPairDStream<String, Stock> openStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
+				windowDuration, slideDuration);
+
+		JavaPairDStream<String, Double> open = openStock
+				.mapToPair(new PairFunction<Tuple2<String, Stock>, String, Double>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, Double> call(Tuple2<String, Stock> t) throws Exception {
+						return new Tuple2<String, Double>(t._1(), t._2().getQuote().getPrice().doubleValue());
+					}
+				});
+
+		return open;
+	}
+
+	public JavaPairDStream<String, Double> close(JavaDStream<Stock> stocks) {
+		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
+
+		JavaPairDStream<String, Stock> closeStock = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
+				windowDuration, slideDuration);
+
+		JavaPairDStream<String, Double> close = closeStock
+				.mapToPair(new PairFunction<Tuple2<String, Stock>, String, Double>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, Double> call(Tuple2<String, Stock> t) throws Exception {
+						return new Tuple2<String, Double>(t._1(), t._2().getQuote().getPrice().doubleValue());
+					}
+				});
+
+		return close;
 	}
 
 	// TODO: split into methods
@@ -61,11 +108,11 @@ public class AnalysisRunner implements Serializable {
 
 		JavaPairDStream<String, Stock> newestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Stock> oldestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
 
@@ -184,11 +231,11 @@ public class AnalysisRunner implements Serializable {
 
 		JavaPairDStream<String, Stock> newestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Stock> oldestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
 
@@ -240,11 +287,11 @@ public class AnalysisRunner implements Serializable {
 
 		JavaPairDStream<String, Stock> newestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Stock> oldestStock = symbolStock.reduceByKeyAndWindow(
 				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
-				WINDOW_DURATION, SLIDE_DURATION);
+				windowDuration, slideDuration);
 
 		JavaPairDStream<String, Tuple2<Stock, Stock>> join = newestStock.join(oldestStock);
 
@@ -279,6 +326,77 @@ public class AnalysisRunner implements Serializable {
 
 		return percentageVariation;
 
+	}
+
+	public JavaDStream<StockOHLC> getOHLC(JavaDStream<Stock> stocks) {
+		return getSymbolAndOHLC(stocks).map(v1 -> v1._2());
+	}
+
+	public JavaPairDStream<String, StockOHLC> getSymbolAndOHLC(JavaDStream<Stock> stocks) {
+		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
+
+		JavaPairDStream<String, Stock> low = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getPrice().compareTo(y.getQuote().getPrice()) < 0 ? x : y), windowDuration,
+				slideDuration);
+
+		JavaPairDStream<String, Stock> high = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getPrice().compareTo(y.getQuote().getPrice()) > 0 ? x : y), windowDuration,
+				slideDuration);
+
+		JavaPairDStream<String, Stock> open = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
+				windowDuration, slideDuration);
+
+		JavaPairDStream<String, Stock> close = symbolStock.reduceByKeyAndWindow(
+				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
+				windowDuration, slideDuration);
+
+		JavaPairDStream<String, Tuple2<Tuple2<Tuple2<Stock, Stock>, Stock>, Stock>> join = open.join(high).join(low)
+				.join(close);
+
+		JavaPairDStream<String, StockOHLC> ohlc = join.mapToPair(
+				new PairFunction<Tuple2<String, Tuple2<Tuple2<Tuple2<Stock, Stock>, Stock>, Stock>>, String, StockOHLC>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, StockOHLC> call(
+							Tuple2<String, Tuple2<Tuple2<Tuple2<Stock, Stock>, Stock>, Stock>> t) throws Exception {
+
+						StockOHLC stockOHLC = new StockOHLC();
+						stockOHLC.setSymbol(t._1());
+						// stockOHLC.setTradeTime(t._2()._2().getQuote().getLastTradeTime());
+						stockOHLC.setOpen(t._2()._1()._1()._1().getQuote().getPrice().doubleValue());
+						stockOHLC.setHigh(t._2()._1()._1()._2().getQuote().getPrice().doubleValue());
+						stockOHLC.setLow(t._2()._1()._2().getQuote().getPrice().doubleValue());
+						stockOHLC.setClose(t._2()._2().getQuote().getPrice().doubleValue());
+						// or
+						// long startVolume = t._2()._2().getQuote().getVolume();
+						// long endVolume = t._2()._1()._1()._1().getQuote().getVolume();
+						// stockOHLC.setVolume(endVolume - startVolume);
+						stockOHLC.setVolume(t._2()._2().getQuote().getVolume());
+
+						return new Tuple2<String, StockOHLC>(t._1(), stockOHLC);
+					}
+				});
+
+		return ohlc;
+	}
+
+	public Duration getWindowDuration() {
+		return windowDuration;
+	}
+
+	public void setWindowDuration(Duration windowDuration) {
+		this.windowDuration = windowDuration;
+	}
+
+	public Duration getSlideDuration() {
+		return slideDuration;
+	}
+
+	public void setSlideDuration(Duration slideDuration) {
+		this.slideDuration = slideDuration;
 	}
 
 }

@@ -9,7 +9,7 @@ import org.apache.spark.mllib.classification.SVMWithSGD;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 
-import it.himyd.spark.ml.classification.training.OHLCstock;
+import it.himyd.stock.StockOHLC;
 
 public class StockClassifier {
 	private final static String TRAINING_PATH = "target/classes/ml/BANKNIFTY.txt";
@@ -46,14 +46,14 @@ public class StockClassifier {
 		JavaRDD<LabeledPoint> labeled = csv.map(new Function<String, LabeledPoint>() {
 
 			private static final long serialVersionUID = 1L;
-			OHLCstock prevStock = null;
-			OHLCstock currentStock = null;
+			StockOHLC prevStock = null;
+			StockOHLC currentStock = null;
 
 			@Override
 			public LabeledPoint call(String t) throws Exception {
 				Double label;
 				prevStock = currentStock;
-				currentStock = new OHLCstock(t);
+				currentStock = new StockOHLC(t);
 
 				if (prevStock != null) {
 					// System.out.println("prev:" + prevStock.getDate());
@@ -76,7 +76,7 @@ public class StockClassifier {
 						label = 1.0; // up
 					}
 					
-					System.out.println(currentStock.getDate() + " - prev: " + prevPriceDiff + ", curr: " + currPriceDiff);
+					System.out.println(currentStock.getTradeTime().getTime() + " - prev: " + prevPriceDiff + ", curr: " + currPriceDiff);
 
 					return new LabeledPoint(label, Vectors.dense(vc));
 				}

@@ -10,13 +10,14 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 
+import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 
 public class StockClusterer implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	public static final int CLUSTER_NUMBER = 2;
+	public static final int CLUSTER_NUMBER = 10;
 	public final static int CLUSTERING_FEATURE_NUMBER = 3;
 
 	StreamingKMeans model = new StreamingKMeans();
@@ -34,6 +35,12 @@ public class StockClusterer implements Serializable {
 	public JavaPairDStream<String, Integer> clusterStocks(JavaDStream<Stock> stocks){
 		trainModelOnStock(stocks); // train
 		return convertLabeledVectorToCluster(convertStockToLabeledVector(stocks)); // predict
+	}
+	
+	public JavaPairDStream<String, Integer> clusterStocksOHLC(JavaDStream<StockOHLC> stocks){
+//		trainModelOnStock(stocks); // train
+//		return convertLabeledVectorToCluster(convertStockToLabeledVector(stocks)); // predict
+		return null;
 	}
 
 	
