@@ -19,7 +19,7 @@ import scala.Tuple2;
 public class StockClusterer implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	public static final int CLUSTER_NUMBER = 10;
+	public static final int CLUSTER_NUMBER = 2;
 	public final static int CLUSTERING_FEATURE_NUMBER = 4; // N.B. change to other clustering
 
 	StreamingKMeans model = new StreamingKMeans();

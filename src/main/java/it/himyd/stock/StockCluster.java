@@ -2,16 +2,17 @@ package it.himyd.stock;
 
 import java.io.Serializable;
 import java.util.Calendar;
+import java.util.Date;
 
 public class StockCluster implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private Integer cluster;
-	private Calendar clustertime;
+	private Date clustertime;
 	private String symbol;
 
 	public StockCluster() {
-		this.clustertime = Calendar.getInstance();
+		this.clustertime = new Date();
 	}
 
 	public Integer getCluster() {
@@ -22,11 +23,11 @@ public class StockCluster implements Serializable {
 		this.cluster = cluster;
 	}
 
-	public Calendar getClustertime() {
+	public Date getClustertime() {
 		return clustertime;
 	}
 
-	public void setClustertime(Calendar clustertime) {
+	public void setClustertime(Date clustertime) {
 		this.clustertime = clustertime;
 	}
 
@@ -40,8 +41,7 @@ public class StockCluster implements Serializable {
 
 	@Override
 	public String toString() {
-		return "StockCluster [cluster=" + cluster + ", clustertime=" + clustertime.getTime() + ", symbol=" + symbol
-				+ "]";
+		return "StockCluster [cluster=" + cluster + ", clustertime=" + clustertime + ", symbol=" + symbol + "]";
 	}
 
 }
