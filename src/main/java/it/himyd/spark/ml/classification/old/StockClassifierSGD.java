@@ -47,7 +47,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 
 import it.himyd.kafka.KafkaConnector;
-import it.himyd.spark.analysis.AnalysisRunner;
+import it.himyd.spark.analysis.streaming.AnalysisRunner;
 import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
 

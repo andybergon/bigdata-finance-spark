@@ -18,3 +18,7 @@ spark-submit --class "it.himyd.spark.SparkStockAnalytics" --master local[4] ~/gi
  --jars $HOME/spark-in-practice-1.0.jar
 		$HOME/twitter4j-core-3.0.3.jar
 ```
+
+## Cassandra
+cassandra
+cqlsh

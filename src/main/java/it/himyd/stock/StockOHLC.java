@@ -9,14 +9,14 @@ public class StockOHLC implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	String symbol;
-	Calendar tradeTime;
+	Calendar tradetime;
 	Double open, high, low, close;
 	Long volume;
 
 	public StockOHLC() {
 		super();
 		this.symbol = new String();
-		this.tradeTime = Calendar.getInstance();
+		this.tradetime = Calendar.getInstance();
 		this.open = new Double(0);
 		this.high = new Double(0);
 		this.low = new Double(0);
@@ -33,7 +33,7 @@ public class StockOHLC implements Serializable {
 		String time = line[2];
 
 		this.symbol = line[0];
-		this.tradeTime = stringsToDate(day, time);
+		this.tradetime = stringsToDate(day, time);
 		this.open = Double.valueOf(line[3]);
 		this.high = Double.valueOf(line[4]);
 		this.low = Double.valueOf(line[5]);
@@ -44,7 +44,7 @@ public class StockOHLC implements Serializable {
 	public StockOHLC(String symbol, Calendar time, Double open, Double high, Double low, Double close, Long volume) {
 		super();
 		this.symbol = symbol;
-		this.tradeTime = time;
+		this.tradetime = time;
 		this.open = open;
 		this.high = high;
 		this.low = low;
@@ -77,7 +77,7 @@ public class StockOHLC implements Serializable {
 
 	@Override
 	public String toString() {
-		return "StockOHLC [symbol=" + symbol + ", time=" + tradeTime.getTime() + ", open=" + open + ", high=" + high
+		return "StockOHLC [symbol=" + symbol + ", time=" + tradetime.getTime() + ", open=" + open + ", high=" + high
 				+ ", low=" + low + ", close=" + close + ", volume=" + volume + "]";
 	}
 
@@ -89,12 +89,12 @@ public class StockOHLC implements Serializable {
 		this.symbol = symbol;
 	}
 
-	public Calendar getTradeTime() {
-		return tradeTime;
+	public Calendar getTradetime() {
+		return tradetime;
 	}
 
-	public void setTradeTime(Calendar tradeTime) {
-		this.tradeTime = tradeTime;
+	public void setTradetime(Calendar tradetime) {
+		this.tradetime = tradetime;
 	}
 
 	public Double getOpen() {

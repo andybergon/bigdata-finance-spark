@@ -76,7 +76,7 @@ public class StockClassifier {
 						label = 1.0; // up
 					}
 					
-					System.out.println(currentStock.getTradeTime().getTime() + " - prev: " + prevPriceDiff + ", curr: " + currPriceDiff);
+					System.out.println(currentStock.getTradetime().getTime() + " - prev: " + prevPriceDiff + ", curr: " + currPriceDiff);
 
 					return new LabeledPoint(label, Vectors.dense(vc));
 				}

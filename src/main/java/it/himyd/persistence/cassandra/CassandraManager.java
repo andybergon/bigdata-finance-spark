@@ -3,14 +3,104 @@ package it.himyd.persistence.cassandra;
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 import static com.datastax.spark.connector.japi.CassandraStreamingJavaUtil.javaFunctions;
 
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.functions;
 import org.apache.spark.streaming.api.java.JavaDStream;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.spark.connector.CassandraRow;
+
+import it.himyd.stock.StockCluster;
+import it.himyd.stock.StockOHLC;
 import it.himyd.stock.StockSample;
 
 public class CassandraManager {
+	Cluster cluster;
+	Session session;
+
+	String keyspace = "finance";
+
+	// @formatter:off
+    String ohlcTable = "CREATE TABLE IF NOT EXISTS finance.ohlc("
+	         + "symbol text, "
+	         + "tradetime timestamp, "
+	         + "open double, "
+	         + "high double, "
+	         + "low double, "
+	         + "close double, "
+	         + "volume int, "
+	         + "PRIMARY KEY(symbol,tradetime) "
+	         + ") WITH CLUSTERING ORDER BY (tradetime DESC);";
+    
+    String clustersTable = "CREATE TABLE IF NOT EXISTS finance.clusters("
+	         + "clustertime timestamp, "
+	         + "cluster int, "
+	         + "symbol text, "
+	         + "PRIMARY KEY(symbol, clustertime) "
+	         + ") WITH CLUSTERING ORDER BY (clustertime DESC);";
+    // @formatter:on
+
+	public static void main(String[] args) {
+		new CassandraManager();
+	}
+
+	public CassandraManager() {
+		// Creating Cluster object
+		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
+
+		// Creating Session object
+		session = cluster.connect();
+
+		dropKeyspace();
+		createKeyspace();
+		createTable(clustersTable);
+	}
+
+	private void dropKeyspace() {
+		String query = "DROP KEYSPACE finance;";
+
+		// Executing the query
+		session.execute(query);
+
+		System.out.println("Keyspace deleted");
+	}
+
+	private void createKeyspace() {
+		String query = "CREATE KEYSPACE IF NOT EXISTS finance WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1 };";
+
+		// Executing the query
+		session.execute(query);
+		session.execute("USE finance;");
+
+		System.out.println("Keyspace created");
+	}
+
+	private void createTable(String table) {
+		// Executing the query
+		session.execute(table);
+
+		System.out.println("Table created");
+	}
 
 	public void persistStocks(JavaDStream<StockSample> sampleStocks) {
 		javaFunctions(sampleStocks).writerBuilder("finance", "stocks", mapToRow(StockSample.class)).saveToCassandra();
+	}
+
+	public void persistOHLCStocks(JavaDStream<StockOHLC> ohlc) {
+		javaFunctions(ohlc).writerBuilder("finance", "ohlc", mapToRow(StockOHLC.class)).saveToCassandra();
+	}
+
+	public void persistClusterStocks(JavaDStream<StockCluster> clusters) {
+		javaFunctions(clusters).writerBuilder("finance", "clusters", mapToRow(StockCluster.class)).saveToCassandra();
+	}
+
+	public JavaRDD<StockCluster> readClusterStocks() {
+		JavaRDD<StockCluster> rdd = null;
+
+		return rdd;
 	}
 
 	// NOT WORKING

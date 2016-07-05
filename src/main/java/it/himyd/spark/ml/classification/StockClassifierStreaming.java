@@ -40,7 +40,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 
 import it.himyd.kafka.KafkaConnector;
-import it.himyd.spark.analysis.AnalysisRunner;
+import it.himyd.spark.analysis.streaming.AnalysisRunner;
 import it.himyd.stock.StockOHLC;
 import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
@@ -213,7 +213,7 @@ public class StockClassifierStreaming {
 						label = 1.0; // up
 					}
 
-					System.out.println(currStock.getTradeTime().getTime() + " - symbol: " + currStock.getSymbol()
+					System.out.println(currStock.getTradetime().getTime() + " - symbol: " + currStock.getSymbol()
 							+ ", prevCO: " + prevCO + ", currCO: " + currCO);
 
 					return new LabeledPoint(label, Vectors.dense(vc));

@@ -1,4 +1,4 @@
-package it.himyd.spark.analysis;
+package it.himyd.spark.analysis.streaming;
 
 import java.io.Serializable;
 import java.util.ArrayList;
