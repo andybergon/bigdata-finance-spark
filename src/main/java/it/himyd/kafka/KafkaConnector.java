@@ -13,22 +13,28 @@ import org.apache.spark.streaming.kafka.KafkaUtils;
 import kafka.serializer.StringDecoder;
 
 public class KafkaConnector {
-	public final static String BROKERS = "localhost:9092";
-	public final static String TOPICS = "stock_topic";
+	private String brokerAddress;
+	private String topics;
 
 	private JavaStreamingContext jssc;
 	private Map<String, String> kafkaParams;
 	private Set<String> topicsSet;
 
 	public KafkaConnector(JavaStreamingContext jssc) {
-		System.out.println("Setting Kafka Parameters...");
 		this.jssc = jssc;
 
+		this.brokerAddress = "localhost:9092";
+		this.topics = "stock_topic";
+	}
+
+	public void initialize() {
+		System.out.println("Setting Kafka Parameters...");
+
 		this.kafkaParams = new HashMap<String, String>();
-		this.kafkaParams.put("metadata.broker.list", BROKERS);
+		this.kafkaParams.put("metadata.broker.list", brokerAddress);
 
 		this.topicsSet = new HashSet<String>();
-		this.topicsSet.addAll(Arrays.asList(TOPICS.split(",")));
+		this.topicsSet.addAll(Arrays.asList(topics.split(",")));
 
 		System.out.println("Kafka Parameters Setted");
 	}
@@ -76,6 +82,22 @@ public class KafkaConnector {
 
 	public void setTopicsSet(Set<String> topicsSet) {
 		this.topicsSet = topicsSet;
+	}
+
+	public String getBrokerAddress() {
+		return brokerAddress;
+	}
+
+	public void setBrokerAddress(String brokerAddress) {
+		this.brokerAddress = brokerAddress;
+	}
+
+	public String getTopics() {
+		return topics;
+	}
+
+	public void setTopics(String topics) {
+		this.topics = topics;
 	}
 
 }

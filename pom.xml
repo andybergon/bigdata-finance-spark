@@ -71,7 +71,7 @@
 			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 	</dependencies>
 
 	<build>
@@ -94,10 +94,29 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>com.intelliware.spark.SparkStockAnalyticsExample</mainClass>
+							<mainClass>com.intelliware.spark.SparkStreamingAnalytics</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
