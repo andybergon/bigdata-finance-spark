@@ -2,9 +2,7 @@ package it.himyd.spark.ml.classification;
 
 import java.util.HashMap;
 
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.classification.StreamingLogisticRegressionWithSGD;
 import org.apache.spark.mllib.linalg.Vector;
@@ -12,37 +10,16 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.State;
-import org.apache.spark.streaming.StateSpec;
-import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.dstream.DStream;
-import org.apache.spark.streaming.dstream.MapWithStateDStream;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.util.ManualClock;
-
-import org.apache.spark.HashPartitioner;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.function.Function3;
-import org.apache.spark.api.java.function.Function4;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.streaming.api.java.JavaPairDStream;
-import org.apache.spark.streaming.api.java.JavaMapWithStateDStream;
 
 import it.himyd.kafka.KafkaConnector;
 import it.himyd.spark.analysis.streaming.AnalysisRunner;
 import it.himyd.stock.StockOHLC;
-import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 

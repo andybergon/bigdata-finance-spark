@@ -3,31 +3,22 @@ package it.himyd.persistence.cassandra;
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 import static com.datastax.spark.connector.japi.CassandraStreamingJavaUtil.javaFunctions;
 
-import java.util.Date;
-
-import org.apache.spark.SparkContext;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.functions;
 import org.apache.spark.streaming.api.java.JavaDStream;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.datastax.spark.connector.CassandraRow;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
 import com.datastax.spark.connector.rdd.reader.RowReaderFactory;
 
 import it.himyd.stock.StockCluster;
 import it.himyd.stock.StockOHLC;
-import it.himyd.stock.StockSample;
 
 public class CassandraManager {
 	Cluster cluster;
 	Session session;
+	boolean mustDropKeyspace = false;
 
 	String keyspace = "finance";
 
@@ -55,6 +46,22 @@ public class CassandraManager {
 		new CassandraManager();
 	}
 
+	public CassandraManager(boolean mustDropKeyspace) {
+		this.mustDropKeyspace = mustDropKeyspace;
+
+		// Creating Cluster object
+		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
+
+		// Creating Session object
+		session = cluster.connect();
+
+		if (mustDropKeyspace) {
+			dropKeyspace();
+		}
+		createKeyspace();
+		createTable(clustersTable);
+	}
+
 	public CassandraManager() {
 		// Creating Cluster object
 		cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
@@ -62,7 +69,9 @@ public class CassandraManager {
 		// Creating Session object
 		session = cluster.connect();
 
-		// dropKeyspace();
+		if (mustDropKeyspace) {
+			dropKeyspace();
+		}
 		createKeyspace();
 		createTable(clustersTable);
 	}
@@ -93,10 +102,6 @@ public class CassandraManager {
 		System.out.println("Table created");
 	}
 
-	public void persistStocks(JavaDStream<StockSample> sampleStocks) {
-		javaFunctions(sampleStocks).writerBuilder(keyspace, "stocks", mapToRow(StockSample.class)).saveToCassandra();
-	}
-
 	public void persistOHLCStocks(JavaDStream<StockOHLC> ohlc) {
 		javaFunctions(ohlc).writerBuilder(keyspace, "ohlc", mapToRow(StockOHLC.class)).saveToCassandra();
 	}
@@ -114,38 +119,4 @@ public class CassandraManager {
 		return rdd;
 	}
 
-	// public JavaPairRDD<Date,StockCluster> readClusterStocksPair(SparkContext sc) {
-	// SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(sc);
-	// RowReaderFactory<Date> rrfCol = com.datastax.spark.connector.japi.CassandraJavaUtil
-	// .mapColumnTo(Date.class);
-	// RowReaderFactory<StockCluster> rrfRow = com.datastax.spark.connector.japi.CassandraJavaUtil
-	// .mapRowTo(StockCluster.class);
-	// CassandraJavaPairRDD<Date, StockCluster> rdd = spjf.cassandraTable();
-	//
-	// return rdd;
-	// }
-
-	// NOT WORKING
-
-	// JavaRDD<StockSample> sampleStockRDD = sampleStocks.compute(new Time(60*1000));
-	// javaFunctions(sampleStockRDD).writerBuilder("finance", "stocks",
-	// mapToRow(StockSample.class)).saveToCassandra();
-
-	// CassandraJavaUtil.mapToRow(StockSample.class)
-	// RowWriterFactory<StockSample> rowWriterFactory
-	// javaFunctions(sampleStocks).writerBuilder("finance", "stocks",
-	// rowWriterFactory).saveToCassandra();
-
-	// javaFunctions(sampleStockRDD, StockSample.class);
-
-	// JavaRDD<String> cassandraRowsRDD = javaFunctions(jssc).cassandraTable("finance",
-	// "stocks").map(new Function<CassandraRow, String>() {
-	// @Override
-	// public String call(CassandraRow cassandraRow) throws Exception {
-	// return cassandraRow.toString();
-	// }
-	// });
-
-	// StringUtils.join(cassandraRowsRDD.take(1), "\n")
-	// System.out.println("Data as CassandraRows: \n" + cassandraRowsRDD.count());
 }

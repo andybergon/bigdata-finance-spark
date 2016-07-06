@@ -20,7 +20,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.himyd.stock.StockOHLC;
-import it.himyd.stock.StockSample;
 import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
@@ -164,41 +163,11 @@ public class AnalysisRunner implements Serializable {
 
 	}
 
-	// private static final class StockToPair implements
-	// PairFunction<StockPrice, String, Double> {
-	// private static final long serialVersionUID = 1L;
-	//
-	// @Override
-	// public Tuple2<String, Double> call(StockPrice stock) throws Exception {
-	// String symbol = stock.getSymbol();
-	// Double price = stock.getPrice();
-	//
-	// return new Tuple2<>(symbol, price);
-	// }
-	//
-	// }
-	//
-	//
-	// private static final class Sum implements Function2<Double, Double,
-	// Double> {
-	// private static final long serialVersionUID = 1L;
-	//
-	// @Override
-	// public Double call(Double i1, Double i2) {
-	// return i1 + i2;
-	// }
-	// }
-
 	/* CONVERTERS */
 
 	public JavaDStream<Stock> convertKafkaMessagesToStock(JavaPairInputDStream<String, String> messages) {
 		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
 		return stocks;
-	}
-
-	public JavaDStream<StockSample> convertStockToStockSample(JavaDStream<Stock> stocks) {
-		JavaDStream<StockSample> stockSample = stocks.map(stock -> new StockSample(stock));
-		return stockSample;
 	}
 
 	// utilized before when kafka put all data in 1 line
@@ -262,7 +231,6 @@ public class AnalysisRunner implements Serializable {
 						priceVariation = priceVariation - 1;
 						volumeVariation = volumeVariation - 1;
 
-						// to percentage, correct?
 						priceVariation = priceVariation * 100;
 						volumeVariation = volumeVariation * 100;
 
