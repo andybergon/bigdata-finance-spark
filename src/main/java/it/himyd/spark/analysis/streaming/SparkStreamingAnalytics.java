@@ -9,7 +9,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 import it.himyd.kafka.KafkaConnector;
 import it.himyd.persistence.cassandra.CassandraManager;
-import it.himyd.spark.ml.clustering.StockClusterer;
+import it.himyd.spark.ml.clustering.StockClustererStreaming;
 import it.himyd.stock.StockCluster;
 import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
@@ -27,7 +27,7 @@ public class SparkStreamingAnalytics {
 			System.exit(1);
 		}
 
-		String brokerAddress = args[0] + ":9092";
+		String brokerAddress = args[0] == null ? "localhost" : args[0] + ":9092";
 
 		SparkConf conf = new SparkConf().setAppName("SparkStreamingAnalytics");
 		// working threads
@@ -36,24 +36,19 @@ public class SparkStreamingAnalytics {
 
 		JavaStreamingContext jssc = new JavaStreamingContext(conf, BATCH_DURATION);
 
-		KafkaConnector kc = new KafkaConnector(jssc);
-		kc.setBrokerAddress(brokerAddress);
-		kc.initialize();
+		KafkaConnector kc = new KafkaConnector(jssc, brokerAddress);
 
 		JavaPairInputDStream<String, String> messages = kc.getStream();
-		messages.print();
 
 		System.out.println("Starting analysis...");
 		AnalysisRunner ar = new AnalysisRunner();
 		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
-		// stocks.print();
 
 		JavaDStream<StockOHLC> ohlc = ar.getOHLC(stocks);
 		ohlc.print();
 
 		// StockClusterer kms = new StockClusterer();
-		// JavaDStream<StockCluster> clusters = kms.clusterOHLC(ohlc);
-		// clusters.print();
+//		kms.clusterOHLC(ohlc).print();
 
 		// CassandraManager cm = new CassandraManager();
 		// cm.persistClusterStocks(clusters);

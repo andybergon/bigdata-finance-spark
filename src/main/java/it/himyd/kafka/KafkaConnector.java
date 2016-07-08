@@ -13,18 +13,36 @@ import org.apache.spark.streaming.kafka.KafkaUtils;
 import kafka.serializer.StringDecoder;
 
 public class KafkaConnector {
-	private String brokerAddress;
-	private String topics;
-
 	private JavaStreamingContext jssc;
 	private Map<String, String> kafkaParams;
 	private Set<String> topicsSet;
 
+	private String brokerAddress;
+	private String topics;
+
 	public KafkaConnector(JavaStreamingContext jssc) {
 		this.jssc = jssc;
 
+		System.out.println("Address NOT defined, using 'localhost' as default.");
 		this.brokerAddress = "localhost:9092";
 		this.topics = "stock_topic";
+
+		this.initialize();
+	}
+
+	public KafkaConnector(JavaStreamingContext jssc, String address) {
+		this.jssc = jssc;
+
+		this.brokerAddress = address + ":9092";
+		this.topics = "stock_topic";
+
+		this.initialize();
+	}
+
+	public KafkaConnector(JavaStreamingContext jssc, Map<String, String> kafkaParams, Set<String> topicsSet) {
+		this.jssc = jssc;
+		this.kafkaParams = kafkaParams;
+		this.topicsSet = topicsSet;
 	}
 
 	public void initialize() {
@@ -37,12 +55,6 @@ public class KafkaConnector {
 		this.topicsSet.addAll(Arrays.asList(topics.split(",")));
 
 		System.out.println("Kafka Parameters Setted");
-	}
-
-	public KafkaConnector(JavaStreamingContext jssc, Map<String, String> kafkaParams, Set<String> topicsSet) {
-		this.jssc = jssc;
-		this.kafkaParams = kafkaParams;
-		this.topicsSet = topicsSet;
 	}
 
 	// params:

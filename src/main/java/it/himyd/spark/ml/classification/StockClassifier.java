@@ -13,13 +13,12 @@ import it.himyd.stock.StockOHLC;
 
 public class StockClassifier {
 	private final static String TRAINING_PATH = "target/classes/ml/BANKNIFTY.txt";
+	private final static int NUM_FEATURES = 1;
 
 	private static SVMModel svmModel;
 
-	private final static int NUM_FEATURES = 1;
-
 	public static void main(String[] args) {
-		SparkConf conf = new SparkConf().setAppName("SparkStockAnalytics");
+		SparkConf conf = new SparkConf().setAppName("SparkStreamingClustering");
 		conf.setMaster("local[2]");
 
 		JavaSparkContext jsc = new JavaSparkContext(conf);

@@ -1,8 +1,8 @@
 package it.himyd.spark.ml.clustering;
 
 import java.io.Serializable;
-import java.util.Calendar;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.mllib.clustering.StreamingKMeans;
@@ -10,24 +10,31 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
+import org.apache.spark.streaming.api.java.JavaPairInputDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
+import it.himyd.kafka.KafkaConnector;
+import it.himyd.spark.analysis.streaming.AnalysisRunner;
 import it.himyd.stock.StockCluster;
 import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 
-public class StockClusterer implements Serializable {
+public class StockClustererStreaming implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	public static final int CLUSTER_NUMBER = 2;
-	public final static int CLUSTERING_FEATURE_NUMBER = 4; // N.B. change to other clustering
+	public static final int CLUSTERING_FEATURE_NUMBER = 4; // N.B. change to other clustering
 
-	StreamingKMeans model = new StreamingKMeans();
+	private StreamingKMeans model;
+	private int clusterNumber;
+	private Double scalingFactor;
 
-	public StockClusterer() {
+	public StockClustererStreaming() {
+		this.clusterNumber = 3;
+		this.scalingFactor = new Double(1);
+
 		this.model = new StreamingKMeans();
-
-		this.model.setK(CLUSTER_NUMBER);
+		this.model.setK(clusterNumber);
 		// with a=1 all data will be used from the beginning
 		// with a=0 only the most recent data will be used
 		this.model.setDecayFactor(1.0);
@@ -162,9 +169,8 @@ public class StockClusterer implements Serializable {
 		return Vectors.dense(values);
 	}
 
-	// change here to change features of clustering
+	// features of clustering
 	public Vector stockOHLCToVector(StockOHLC stock) {
-		Double scalingFactor = new Double(1);
 		Double percOL = stock.getOpen() / stock.getLow();
 		percOL = (percOL - 1) * 100 * scalingFactor;
 		Double percOH = stock.getOpen() / stock.getHigh();
@@ -184,4 +190,28 @@ public class StockClusterer implements Serializable {
 		return Vectors.dense(values);
 	}
 
+	public StreamingKMeans getModel() {
+		return model;
+	}
+
+	public void setModel(StreamingKMeans model) {
+		this.model = model;
+	}
+
+	public int getClusterNumber() {
+		return clusterNumber;
+	}
+
+	public void setClusterNumber(int clusterNumber) {
+		this.clusterNumber = clusterNumber;
+	}
+
+	public Double getScalingFactor() {
+		return scalingFactor;
+	}
+
+	public void setScalingFactor(Double scalingFactor) {
+		this.scalingFactor = scalingFactor;
+	}
+	
 }
