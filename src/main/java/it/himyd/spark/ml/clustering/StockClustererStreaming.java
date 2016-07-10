@@ -2,7 +2,6 @@ package it.himyd.spark.ml.clustering;
 
 import java.io.Serializable;
 
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.mllib.clustering.StreamingKMeans;
@@ -10,11 +9,7 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
-import org.apache.spark.streaming.api.java.JavaPairInputDStream;
-import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
-import it.himyd.kafka.KafkaConnector;
-import it.himyd.spark.analysis.streaming.AnalysisRunner;
 import it.himyd.stock.StockCluster;
 import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
@@ -213,5 +208,5 @@ public class StockClustererStreaming implements Serializable {
 	public void setScalingFactor(Double scalingFactor) {
 		this.scalingFactor = scalingFactor;
 	}
-	
+
 }

@@ -5,6 +5,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 public class StockOHLC implements Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -75,6 +79,18 @@ public class StockOHLC implements Serializable {
 		return calendar;
 	}
 
+	public String toJSONstring() {
+		ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+		String json = "";
+		try {
+			json = ow.writeValueAsString(this);
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return json;
+	}
+	
 	@Override
 	public String toString() {
 		return "StockOHLC [symbol=" + symbol + ", time=" + tradetime.getTime() + ", open=" + open + ", high=" + high
