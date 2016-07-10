@@ -7,8 +7,8 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
+import it.himyd.cassandra.CassandraManager;
 import it.himyd.kafka.KafkaConnector;
-import it.himyd.persistence.cassandra.CassandraManager;
 import it.himyd.spark.ml.clustering.StockClustererStreaming;
 import it.himyd.stock.StockCluster;
 import it.himyd.stock.StockOHLC;

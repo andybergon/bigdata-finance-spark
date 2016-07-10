@@ -1,4 +1,4 @@
-package it.himyd.persistence.cassandra;
+package it.himyd.cassandra;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 import static com.datastax.spark.connector.japi.CassandraStreamingJavaUtil.javaFunctions;

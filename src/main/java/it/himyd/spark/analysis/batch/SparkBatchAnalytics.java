@@ -4,7 +4,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
-import it.himyd.persistence.cassandra.CassandraManager;
+import it.himyd.cassandra.CassandraManager;
 import it.himyd.stock.StockCluster;
 
 public class SparkBatchAnalytics {
