@@ -20,7 +20,9 @@ public class CassandraManager {
 	Session session;
 	boolean mustDropKeyspace = false;
 
-	String keyspace = "finance";
+	String keyspaceName = "finance";
+	String ohlcTableName = "ohlc";
+	String clusterTableName = "clusters";
 
 	// @formatter:off
     String ohlcTable = "CREATE TABLE IF NOT EXISTS finance.ohlc("
@@ -103,18 +105,28 @@ public class CassandraManager {
 	}
 
 	public void persistOHLCStocks(JavaDStream<StockOHLC> ohlc) {
-		javaFunctions(ohlc).writerBuilder(keyspace, "ohlc", mapToRow(StockOHLC.class)).saveToCassandra();
+		javaFunctions(ohlc).writerBuilder(keyspaceName, ohlcTableName, mapToRow(StockOHLC.class)).saveToCassandra();
 	}
 
 	public void persistClusterStocks(JavaDStream<StockCluster> clusters) {
-		javaFunctions(clusters).writerBuilder(keyspace, "clusters", mapToRow(StockCluster.class)).saveToCassandra();
+		javaFunctions(clusters).writerBuilder(keyspaceName, clusterTableName, mapToRow(StockCluster.class))
+				.saveToCassandra();
+	}
+
+	public JavaRDD<StockCluster> readOHLCStocks(JavaSparkContext jsc) {
+		SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(jsc);
+		RowReaderFactory<StockCluster> rrf = com.datastax.spark.connector.japi.CassandraJavaUtil
+				.mapRowTo(StockCluster.class);
+		JavaRDD<StockCluster> rdd = spjf.cassandraTable(keyspaceName, ohlcTableName, rrf);
+
+		return rdd;
 	}
 
 	public JavaRDD<StockCluster> readClusterStocks(JavaSparkContext jsc) {
 		SparkContextJavaFunctions spjf = com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions(jsc);
 		RowReaderFactory<StockCluster> rrf = com.datastax.spark.connector.japi.CassandraJavaUtil
 				.mapRowTo(StockCluster.class);
-		JavaRDD<StockCluster> rdd = spjf.cassandraTable(keyspace, "clusters", rrf);
+		JavaRDD<StockCluster> rdd = spjf.cassandraTable(keyspaceName, clusterTableName, rrf);
 
 		return rdd;
 	}

@@ -11,7 +11,7 @@ public class SparkBatchAnalytics {
 
 	public static void main(String s[]) throws Exception {
 
-		SparkConf conf = new SparkConf().setAppName("SparkStockAnalytics");
+		SparkConf conf = new SparkConf().setAppName("SparkBatchAnalytics");
 		conf.setMaster("local[2]");
 		conf.set("spark.cassandra.connection.host", "localhost");
 

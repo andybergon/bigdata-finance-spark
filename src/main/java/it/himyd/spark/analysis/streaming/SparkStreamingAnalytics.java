@@ -15,60 +15,82 @@ import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
 
 public class SparkStreamingAnalytics {
-	private final static Duration BATCH_DURATION = Durations.seconds(1);
-	private final static Duration WINDOW_DURATION = Durations.seconds(60);
-	private final static Duration SLIDE_DURATION = Durations.seconds(5);
+	private final static Duration BATCH_DURATION = Durations.seconds(1); // ogni quanto prendo dati
+	private final static Duration SLIDE_DURATION = Durations.seconds(10); // ogni quanto stampo analisi
+	private final static Duration WINDOW_DURATION = Durations.seconds(60); // finestra dei dati analizzati
+
+	String kafkaAddress;
+	String cassandraAddress;
 
 	public static void main(String args[]) throws Exception {
-		String brokerAddress;
-		String cassandraAddress;
+		SparkStreamingAnalytics ssa = new SparkStreamingAnalytics();
+		ssa.configure(args);
+		ssa.analyze();
+	}
+
+	private void configure(String[] args) {
 
 		if (args.length != 2) {
-			System.out.println(
-					"Usage: java -cp SparkStreamingAnalytics-0.0.1-SNAPSHOT-jar-with-dependencies.jar <kafka-address> <cassandra-address");
-			System.out.println("Setting localhost parameters...");
+			String usageString = "Usage: java -cp SparkStreamingAnalytics-0.0.1-SNAPSHOT-jar-with-dependencies.jar <kafka-address> <cassandra-address";
+			System.out.println(usageString);
 
-			brokerAddress = "localhost:9092";
+			System.out.println("Setting localhost parameters...");
+			kafkaAddress = "localhost:9092";
 			cassandraAddress = "localhost";
+
 			// System.exit(1);
 		} else {
-			brokerAddress = args[0] + ":9092";
+			kafkaAddress = args[0] + ":9092";
 			cassandraAddress = args[1];
 		}
 
+	}
+
+	public void analyze() {
+
 		SparkConf conf = new SparkConf().setAppName("SparkStreamingAnalytics");
-		conf.setMaster("local[2]"); // conf.setMaster("yarn");
-		conf.set("spark.cassandra.connection.host", cassandraAddress);
+		conf.setMaster("local[2]");
+		// conf.setMaster("yarn");
+		conf.set("spark.cassandra.connection.host", this.cassandraAddress);
 
 		JavaStreamingContext jssc = new JavaStreamingContext(conf, BATCH_DURATION);
 
-		KafkaConnector kc = new KafkaConnector(jssc, brokerAddress);
+		KafkaConnector kc = new KafkaConnector(jssc, this.kafkaAddress);
 
 		JavaPairInputDStream<String, String> messages = kc.getStream();
 
 		System.out.println("Starting analysis...");
-		AnalysisRunner ar = new AnalysisRunner(WINDOW_DURATION, SLIDE_DURATION);
-		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
+		AnalysisStreamingRunner ar = new AnalysisStreamingRunner(WINDOW_DURATION, SLIDE_DURATION);
+		JavaDStream<Stock> stocks = ar.convertKafkaStringToStock(messages);
 
+		// Calcolo l'aggregato OHLC su una finestra lunga WINDOW ogni SLIDE time
 		JavaDStream<StockOHLC> ohlc = ar.getOHLC(stocks);
-		ohlc.print();
-		
-		kc.writeOHLC(ohlc);
-		
-		
+		 ohlc.print();
 
-		//StockClustererStreaming kms = new StockClustererStreaming();
+		// Riscrive su Kafka gli aggregati OHLC
+		// kc.writeOHLC(ohlc);
+
+		// Calcolo quali K stock hanno andamenti % maggiori/minori nell'ultimo WINDOW time
+		// ar.printPriceMostUp(stocks, 5);
+		// ar.printPriceMostDown(stocks, 5);
+		// ar.printVolumeMostVariation(stocks, 5);
+
+		// Calcolo K cluster sugli stock OHLC
+		// StockClustererStreaming kms = new StockClustererStreaming();
+		// kms.setClusterNumber(20);
 		// JavaDStream<StockCluster> clusters = kms.clusterOHLC(ohlc);
-		// ar.getSimilarStocks(clusters).print();
+		// ar.printSameTrendStock(clusters, 5);
 
-		// ar.printMostUp(stocks, 2);
-		
+		// Persisto gli stock OHLC
+		 CassandraManager cm = new CassandraManager();
+		 cm.persistOHLCStocks(ohlc);
+
+		// Persisto i cluster
 		// CassandraManager cm = new CassandraManager();
 		// cm.persistClusterStocks(clusters);
 
 		jssc.start();
 		jssc.awaitTermination();
-
 	}
 
 }

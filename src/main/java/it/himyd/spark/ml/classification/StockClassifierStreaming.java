@@ -18,7 +18,7 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 
 import it.himyd.kafka.KafkaConnector;
-import it.himyd.spark.analysis.streaming.AnalysisRunner;
+import it.himyd.spark.analysis.streaming.AnalysisStreamingRunner;
 import it.himyd.stock.StockOHLC;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
@@ -54,10 +54,10 @@ public class StockClassifierStreaming implements Serializable {
 		JavaPairInputDStream<String, String> messages = kc.getStream();
 
 		System.out.println("Starting Analysis...");
-		AnalysisRunner ar = new AnalysisRunner();
+		AnalysisStreamingRunner ar = new AnalysisStreamingRunner();
 		ar.setSlideDuration(batchDuration);
 
-		JavaDStream<Stock> stocks = ar.convertKafkaMessagesToStock(messages);
+		JavaDStream<Stock> stocks = ar.convertKafkaJsonToStock(messages);
 		JavaDStream<StockOHLC> ohlc = ar.getOHLC(stocks);
 
 		// scs.printPrecision(ohlc, 60 * 10, 10);

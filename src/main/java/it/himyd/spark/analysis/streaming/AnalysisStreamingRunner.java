@@ -25,24 +25,24 @@ import it.himyd.stock.StockVariation;
 import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 
-public class AnalysisRunner implements Serializable {
+public class AnalysisStreamingRunner implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private Duration windowDuration;
 	private Duration slideDuration;
 
-	public AnalysisRunner() {
+	public AnalysisStreamingRunner() {
 		this.windowDuration = Durations.seconds(60);
 		this.slideDuration = Durations.seconds(10);
 	}
 
-	public AnalysisRunner(Duration windowDuration, Duration slideDuration) {
+	public AnalysisStreamingRunner(Duration windowDuration, Duration slideDuration) {
 		this.windowDuration = windowDuration;
 		this.slideDuration = slideDuration;
 	}
 
-	public AnalysisRunner(int windowDuration, int slideDuration) {
+	public AnalysisStreamingRunner(int windowDuration, int slideDuration) {
 		this.windowDuration = Durations.seconds(windowDuration);
 		this.slideDuration = Durations.seconds(slideDuration);
 	}
@@ -165,49 +165,38 @@ public class AnalysisRunner implements Serializable {
 
 	}
 
-	public void printMostUp(JavaDStream<Stock> stocks, int topK) {
+	public void printPriceMostUp(JavaDStream<Stock> stocks, int topK) {
+		printPriceMostX(stocks, topK, false);
+	}
 
-		JavaPairDStream<String, Double> mostUp = getSymbolAndOHLC(stocks)
-				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
+	public void printPriceMostDown(JavaDStream<Stock> stocks, int topK) {
+		printPriceMostX(stocks, topK, true);
+	}
 
-		mostUp.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1()))
-				.foreachRDD(rdd -> rdd.sortByKey(true).take(topK).forEach(t -> System.out.println(t)));
+	public void printPriceMostX(JavaDStream<Stock> stocks, int topK, boolean down) {
+		String message = "Top " + topK + " " + (down ? "Negative" : "Positive");
+
+		JavaPairDStream<String, Double> most = getSymbolAndOHLC(stocks).mapToPair(x -> new Tuple2<>(x._1(),
+				(x._2().getClose() == x._2().getOpen() ? (((x._2().getClose() / x._2().getOpen()) - 1) * 100) : 0.0)));
+
+		most.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1())).foreachRDD(rdd -> {
+			System.out.println(message);
+			rdd.sortByKey(down).take(topK).forEach(t -> System.out.println(t._2() + " | " + t._1() + "%"));
+		});
 
 	}
 
-	public void printMostDown(JavaDStream<Stock> stocks, int topK) {
-
-		JavaPairDStream<String, Double> mostDown = getSymbolAndOHLC(stocks)
-				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
-
-		mostDown.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1()))
-				.foreachRDD(rdd -> rdd.sortByKey(false).take(topK).forEach(t -> System.out.println(t)));
-
+	public void printVolumeMostVariation(JavaDStream<Stock> stocks, int topK) {
+		printVolumeVariation(stocks, topK, false);
 	}
 
-	public void printMostVolumeVariation(JavaDStream<Stock> stocks, int topK) {
-
-		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
-
-		JavaPairDStream<String, Stock> open = symbolStock.reduceByKeyAndWindow(
-				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) < 0 ? x : y),
-				windowDuration, slideDuration);
-
-		JavaPairDStream<String, Stock> close = symbolStock.reduceByKeyAndWindow(
-				(x, y) -> (x.getQuote().getLastTradeTime().compareTo(y.getQuote().getLastTradeTime()) > 0 ? x : y),
-				windowDuration, slideDuration);
-
-		open.join(close)
-				.mapToPair(t -> new Tuple2<String, Double>(t._1(),
-						((t._2()._2().getQuote().getPrice().doubleValue()
-								/ t._2()._1().getQuote().getPrice().doubleValue() - 1) * 100)))
-				.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1()))
-				.foreachRDD(rdd -> rdd.sortByKey(true).take(topK).forEach(t -> System.out.println(t)));
-
-	}
-
-	// volumi negativi?
+	// volumi negativi? o cmq molti con 0
 	public void printLeastVolumeVariation(JavaDStream<Stock> stocks, int topK) {
+		printVolumeVariation(stocks, topK, true);
+	}
+
+	public void printVolumeVariation(JavaDStream<Stock> stocks, int topK, boolean least) {
+		String message = (least ? "Bottom" : "Top") + " " + topK + " Volume Variations";
 
 		JavaPairDStream<String, Stock> symbolStock = stocks.mapToPair(stock -> new Tuple2<>(stock.getSymbol(), stock));
 
@@ -220,11 +209,19 @@ public class AnalysisRunner implements Serializable {
 				windowDuration, slideDuration);
 
 		open.join(close)
-				.mapToPair(t -> new Tuple2<String, Double>(t._1(),
-						((t._2()._2().getQuote().getPrice().doubleValue()
-								/ t._2()._1().getQuote().getPrice().doubleValue() - 1) * 100)))
-				.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1()))
-				.foreachRDD(rdd -> rdd.sortByKey(false).take(topK).forEach(t -> System.out.println(t)));
+				.mapToPair(
+						t -> new Tuple2<String, Double>(t._1(),
+								t._2()._2().getQuote().getPrice()
+										.doubleValue() == t._2()._1().getQuote().getPrice()
+												.doubleValue()
+														? ((t._2()._2().getQuote().getPrice().doubleValue()
+																/ t._2()._1().getQuote().getPrice().doubleValue() - 1)
+																* 100)
+														: 0.0))
+				.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1())).foreachRDD(rdd -> {
+					System.out.println(message);
+					rdd.sortByKey(least).take(topK).forEach(t -> System.out.println(t._2() + " | " + t._1() + "%"));
+				});
 
 	}
 
@@ -278,8 +275,13 @@ public class AnalysisRunner implements Serializable {
 
 	/* KAFKA CONVERTERS */
 
-	public JavaDStream<Stock> convertKafkaMessagesToStock(JavaPairInputDStream<String, String> messages) {
+	public JavaDStream<Stock> convertKafkaJsonToStock(JavaPairInputDStream<String, String> messages) {
 		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromJSONString((line._2)));
+		return stocks;
+	}
+
+	public JavaDStream<Stock> convertKafkaStringToStock(JavaPairInputDStream<String, String> messages) {
+		JavaDStream<Stock> stocks = messages.map(line -> Stock.fromLineString((line._2)));
 		return stocks;
 	}
 
@@ -400,6 +402,11 @@ public class AnalysisRunner implements Serializable {
 				windowDuration);
 
 		return stocks2count;
+	}
+
+	public void printSameTrendStock(JavaDStream<StockCluster> clusters, int topK) {
+		getSimilarStocks(clusters).mapToPair(t -> new Tuple2<>(t._2(), t._1()))
+				.foreachRDD(rdd -> rdd.sortByKey(false).take(topK).forEach(t -> System.out.println(t)));
 	}
 
 	/* GETTERS & SETTERS */
