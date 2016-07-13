@@ -4,13 +4,41 @@ import java.io.Serializable;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 
 import it.himyd.stock.StockCluster;
+import it.himyd.stock.StockOHLC;
+import it.himyd.stock.finance.yahoo.Stock;
 import scala.Tuple2;
 
 public class AnalysisBatchRunner implements Serializable {
 
 	private static final long serialVersionUID = 1L;
+
+	/* OHLC ANALYSIS */
+
+	public void printPriceMostUp(JavaRDD<StockOHLC> ohlc, int topK) {
+		printPriceMostX(ohlc, topK, false);
+	}
+
+	public void printPriceMostDown(JavaRDD<StockOHLC> ohlc, int topK) {
+		printPriceMostX(ohlc, topK, true);
+	}
+
+	public void printPriceMostX(JavaRDD<StockOHLC> ohlc, int topK, boolean down) {
+		String message = "Top " + topK + " " + (down ? "Negative" : "Positive");
+
+		JavaPairRDD<String, Double> most = ohlc.mapToPair(x -> new Tuple2<>(x.getSymbol(),
+				(x.getClose() != x.getOpen() ? (((x.getClose() / x.getOpen()) - 1) * 100) : 0.0)));
+
+		System.out.println(message);
+
+		most.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1())).sortByKey(down).take(topK)
+				.forEach(t -> System.out.println(t._2() + " | " + t._1() + "%"));
+	}
+
+	/* CLUSTER ANALYSIS */
 
 	public void printSimilarStocks(JavaRDD<StockCluster> clusters) {
 

@@ -22,14 +22,16 @@ public class SparkStreamingAnalytics {
 	String kafkaAddress;
 	String cassandraAddress;
 
-	public static void main(String args[]) throws Exception {
+	boolean cassandraReset = false;
+	int clusterNumber = 8;
+
+	public static void main(String args[]) {
 		SparkStreamingAnalytics ssa = new SparkStreamingAnalytics();
 		ssa.configure(args);
 		ssa.analyze();
 	}
 
 	private void configure(String[] args) {
-
 		if (args.length != 2) {
 			String usageString = "Usage: java -cp SparkStreamingAnalytics-0.0.1-SNAPSHOT-jar-with-dependencies.jar <kafka-address> <cassandra-address";
 			System.out.println(usageString);
@@ -43,11 +45,9 @@ public class SparkStreamingAnalytics {
 			kafkaAddress = args[0] + ":9092";
 			cassandraAddress = args[1];
 		}
-
 	}
 
 	public void analyze() {
-
 		SparkConf conf = new SparkConf().setAppName("SparkStreamingAnalytics");
 		conf.setMaster("local[2]");
 		// conf.setMaster("yarn");
@@ -63,31 +63,37 @@ public class SparkStreamingAnalytics {
 		AnalysisStreamingRunner ar = new AnalysisStreamingRunner(WINDOW_DURATION, SLIDE_DURATION);
 		JavaDStream<Stock> stocks = ar.convertKafkaStringToStock(messages);
 
-		// Calcolo l'aggregato OHLC su una finestra lunga WINDOW ogni SLIDE time
+		// Calcolo l'aggregato OHLC su una finestra lunga WINDOW secondi ogni SLIDE secondi
 		JavaDStream<StockOHLC> ohlc = ar.getOHLC(stocks);
-		 ohlc.print();
+		// ohlc.print();
 
 		// Riscrive su Kafka gli aggregati OHLC
 		// kc.writeOHLC(ohlc);
 
 		// Calcolo quali K stock hanno andamenti % maggiori/minori nell'ultimo WINDOW time
-		// ar.printPriceMostUp(stocks, 5);
+		ar.printPriceMostUp(stocks, 5);
 		// ar.printPriceMostDown(stocks, 5);
 		// ar.printVolumeMostVariation(stocks, 5);
 
 		// Calcolo K cluster sugli stock OHLC
-		// StockClustererStreaming kms = new StockClustererStreaming();
-		// kms.setClusterNumber(20);
-		// JavaDStream<StockCluster> clusters = kms.clusterOHLC(ohlc);
+		StockClustererStreaming kms = new StockClustererStreaming();
+		kms.setClusterNumber(clusterNumber);
+		JavaDStream<StockCluster> clusters = kms.clusterOHLC(ohlc);
+
+		// Calcolo quali stock hanno più spesso lo stesso cluster
 		// ar.printSameTrendStock(clusters, 5);
 
+		// Configuro il Cassandra Manager
+		CassandraManager cm = new CassandraManager();
+		cm.setClusterIP(this.cassandraAddress);
+		cm.setResetData(false);
+		cm.initialize();
+
 		// Persisto gli stock OHLC
-		 CassandraManager cm = new CassandraManager();
-		 cm.persistOHLCStocks(ohlc);
+		// cm.persistOHLCStocks(ohlc);
 
 		// Persisto i cluster
-		// CassandraManager cm = new CassandraManager();
-		// cm.persistClusterStocks(clusters);
+		cm.persistClusterStocks(clusters);
 
 		jssc.start();
 		jssc.awaitTermination();

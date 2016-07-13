@@ -1,9 +1,7 @@
 package it.himyd.stock;
 
 import java.io.Serializable;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,20 +10,12 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 public class StockOHLC implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	String symbol;
-	Calendar tradetime;
-	Double open, high, low, close;
-	Long volume;
+	private String symbol;
+	private Date tradetime;
+	private Double open, high, low, close;
+	private Long volume;
 
 	public StockOHLC() {
-		super();
-		this.symbol = new String();
-		this.tradetime = Calendar.getInstance();
-		this.open = new Double(0);
-		this.high = new Double(0);
-		this.low = new Double(0);
-		this.close = new Double(0);
-		this.volume = new Long(0);
 	}
 
 	public StockOHLC(String lineString) {
@@ -45,7 +35,7 @@ public class StockOHLC implements Serializable {
 		this.volume = Long.valueOf(line[7]);
 	}
 
-	public StockOHLC(String symbol, Calendar time, Double open, Double high, Double low, Double close, Long volume) {
+	public StockOHLC(String symbol, Date time, Double open, Double high, Double low, Double close, Long volume) {
 		super();
 		this.symbol = symbol;
 		this.tradetime = time;
@@ -56,7 +46,7 @@ public class StockOHLC implements Serializable {
 		this.volume = volume;
 	}
 
-	public Calendar stringsToDate(String day, String time) {
+	public Date stringsToDate(String day, String time) {
 		Date date = new Date();
 		String yyyy = day.substring(0, 4);
 		String mm = day.substring(4, 6);
@@ -73,10 +63,7 @@ public class StockOHLC implements Serializable {
 		date.setMinutes(minute);
 		date.setSeconds(0);
 
-		Calendar calendar = new GregorianCalendar();
-		calendar.setTime(date);
-
-		return calendar;
+		return date;
 	}
 
 	public String toJSONstring() {
@@ -85,15 +72,14 @@ public class StockOHLC implements Serializable {
 		try {
 			json = ow.writeValueAsString(this);
 		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return json;
 	}
-	
+
 	@Override
 	public String toString() {
-		return "StockOHLC [symbol=" + symbol + ", time=" + tradetime.getTime() + ", open=" + open + ", high=" + high
+		return "StockOHLC [symbol=" + symbol + ", time=" + tradetime.toString() + ", open=" + open + ", high=" + high
 				+ ", low=" + low + ", close=" + close + ", volume=" + volume + "]";
 	}
 
@@ -105,11 +91,11 @@ public class StockOHLC implements Serializable {
 		this.symbol = symbol;
 	}
 
-	public Calendar getTradetime() {
+	public Date getTradetime() {
 		return tradetime;
 	}
 
-	public void setTradetime(Calendar tradetime) {
+	public void setTradetime(Date tradetime) {
 		this.tradetime = tradetime;
 	}
 

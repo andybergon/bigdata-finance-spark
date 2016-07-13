@@ -127,6 +127,7 @@ public class AnalysisStreamingRunner implements Serializable {
 
 						StockOHLC stockOHLC = new StockOHLC();
 						stockOHLC.setSymbol(t._1());
+						stockOHLC.setTradetime(new Date());
 						// stockOHLC.setTradeTime(t._2()._2().getQuote().getLastTradeTime());
 						stockOHLC.setOpen(t._2()._1()._1()._1().getQuote().getPrice().doubleValue());
 						stockOHLC.setHigh(t._2()._1()._1()._2().getQuote().getPrice().doubleValue());
@@ -145,26 +146,6 @@ public class AnalysisStreamingRunner implements Serializable {
 		return ohlc;
 	}
 
-	public void printMostUpOld(JavaDStream<Stock> stocks, int topK) {
-
-		JavaPairDStream<String, Double> mostUp = getSymbolAndOHLC(stocks)
-				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
-
-		mostUp.foreachRDD(
-				rdd -> rdd.top(topK, (o1, o2) -> o1._2().compareTo(o2._2())).forEach(t -> System.out.println(t)));
-
-	}
-
-	public void printMostDownOld(JavaDStream<Stock> stocks, int topK) {
-
-		JavaPairDStream<String, Double> mostDown = getSymbolAndOHLC(stocks)
-				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
-
-		mostDown.foreachRDD(
-				rdd -> rdd.top(topK, (o1, o2) -> o1._2().compareTo(o2._2())).forEach(t -> System.out.println(t)));
-
-	}
-
 	public void printPriceMostUp(JavaDStream<Stock> stocks, int topK) {
 		printPriceMostX(stocks, topK, false);
 	}
@@ -177,7 +158,7 @@ public class AnalysisStreamingRunner implements Serializable {
 		String message = "Top " + topK + " " + (down ? "Negative" : "Positive");
 
 		JavaPairDStream<String, Double> most = getSymbolAndOHLC(stocks).mapToPair(x -> new Tuple2<>(x._1(),
-				(x._2().getClose() == x._2().getOpen() ? (((x._2().getClose() / x._2().getOpen()) - 1) * 100) : 0.0)));
+				(x._2().getClose() != x._2().getOpen() ? (((x._2().getClose() / x._2().getOpen()) - 1) * 100) : 0.0)));
 
 		most.mapToPair(t -> new Tuple2<Double, String>(t._2(), t._1())).foreachRDD(rdd -> {
 			System.out.println(message);
@@ -222,6 +203,26 @@ public class AnalysisStreamingRunner implements Serializable {
 					System.out.println(message);
 					rdd.sortByKey(least).take(topK).forEach(t -> System.out.println(t._2() + " | " + t._1() + "%"));
 				});
+
+	}
+
+	public void printMostUpOld(JavaDStream<Stock> stocks, int topK) {
+
+		JavaPairDStream<String, Double> mostUp = getSymbolAndOHLC(stocks)
+				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
+
+		mostUp.foreachRDD(
+				rdd -> rdd.top(topK, (o1, o2) -> o1._2().compareTo(o2._2())).forEach(t -> System.out.println(t)));
+
+	}
+
+	public void printMostDownOld(JavaDStream<Stock> stocks, int topK) {
+
+		JavaPairDStream<String, Double> mostDown = getSymbolAndOHLC(stocks)
+				.mapToPair(x -> new Tuple2<>(x._1(), ((x._2().getClose() / x._2().getOpen()) - 1) * 100));
+
+		mostDown.foreachRDD(
+				rdd -> rdd.top(topK, (o1, o2) -> o1._2().compareTo(o2._2())).forEach(t -> System.out.println(t)));
 
 	}
 
