@@ -1,6 +1,5 @@
 # finance-spark-from-kafka
-
-Using spark streaming to calculate analytics on stock prices from kafka data.
+Using Spark Streaming and Spark Batch to analyze stock prices.
 
 ## Run Spark Streaming
 ```
@@ -11,7 +10,7 @@ spark-submit \
  finance-spark-from-kafka-0.0.1-SNAPSHOT.jar
 ```
  
- per usare jar esterni:
+to use external jars:
  ```
  --jars $HOME/x.jar
 		$HOME/y.jar
@@ -20,5 +19,7 @@ spark-submit \
 ## Cassandra
 ### Start Cassandra Service
 `cassandra`
+or
+`cassandra -f`
 ### Cassandra Query Language
 `cqlsh`
