@@ -17,13 +17,13 @@ import it.himyd.stock.finance.yahoo.Stock;
 public class SparkStreamingAnalytics {
 	private final static Duration BATCH_DURATION = Durations.seconds(1); // ogni quanto prendo dati
 	private final static Duration SLIDE_DURATION = Durations.seconds(10); // ogni quanto stampo analisi
-	private final static Duration WINDOW_DURATION = Durations.seconds(60); // finestra dei dati analizzati
+	private final static Duration WINDOW_DURATION = Durations.seconds(60 * 2); // finestra dei dati analizzati
 
 	String kafkaAddress;
 	String cassandraAddress;
 
 	boolean cassandraReset = false;
-	int clusterNumber = 8;
+	int clusterNumber = 5;
 
 	public static void main(String args[]) {
 		SparkStreamingAnalytics ssa = new SparkStreamingAnalytics();
@@ -49,7 +49,7 @@ public class SparkStreamingAnalytics {
 
 	public void analyze() {
 		SparkConf conf = new SparkConf().setAppName("SparkStreamingAnalytics");
-		conf.setMaster("local[2]");
+		conf.setMaster("local[4]");
 		// conf.setMaster("yarn");
 		conf.set("spark.cassandra.connection.host", this.cassandraAddress);
 
@@ -71,7 +71,7 @@ public class SparkStreamingAnalytics {
 		// kc.writeOHLC(ohlc);
 
 		// Calcolo quali K stock hanno andamenti % maggiori/minori nell'ultimo WINDOW time
-		ar.printPriceMostUp(stocks, 5);
+		// ar.printPriceMostUp(stocks, 5);
 		// ar.printPriceMostDown(stocks, 5);
 		// ar.printVolumeMostVariation(stocks, 5);
 
@@ -81,19 +81,19 @@ public class SparkStreamingAnalytics {
 		JavaDStream<StockCluster> clusters = kms.clusterOHLC(ohlc);
 
 		// Calcolo quali stock hanno più spesso lo stesso cluster
-		// ar.printSameTrendStock(clusters, 5);
+		ar.printSameTrendStock(clusters, 3);
 
 		// Configuro il Cassandra Manager
-		CassandraManager cm = new CassandraManager();
-		cm.setClusterIP(this.cassandraAddress);
-		cm.setResetData(false);
-		cm.initialize();
+		// CassandraManager cm = new CassandraManager();
+		// cm.setClusterIP(this.cassandraAddress);
+		// cm.setResetData(true);
+		// cm.initialize();
 
 		// Persisto gli stock OHLC
 		// cm.persistOHLCStocks(ohlc);
 
 		// Persisto i cluster
-		cm.persistClusterStocks(clusters);
+		// cm.persistClusterStocks(clusters);
 
 		jssc.start();
 		jssc.awaitTermination();

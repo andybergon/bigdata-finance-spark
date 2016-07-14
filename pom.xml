@@ -8,7 +8,7 @@
 	<packaging>jar</packaging>
 
 	<name>finance-spark-from-kafka</name>
-	<description>Spark Streaming Analytics from Kafka data</description>
+	<description>Spark Analytics from Kafka</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,7 +16,7 @@
 	</properties>
 
 	<dependencies>
-		<!-- serve? -->
+
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_2.10</artifactId>
@@ -57,25 +57,6 @@
 			<groupId>com.datastax.spark</groupId>
 			<artifactId>spark-cassandra-connector-java_2.10</artifactId>
 			<version>1.6.0-M1</version>
-		</dependency>
-
-		<!-- STORM -->
-		<dependency>
-			<groupId>org.apache.storm</groupId>
-			<artifactId>storm-core</artifactId>
-			<version>1.0.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.storm</groupId>
-			<artifactId>storm-kafka</artifactId>
-			<version>1.0.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.storm</groupId>
-			<artifactId>storm-starter</artifactId>
-			<version>1.0.1</version>
 		</dependency>
 
 		<dependency>
@@ -141,4 +122,3 @@
 	</build>
 
 </project>
-

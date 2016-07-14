@@ -394,7 +394,7 @@ public class AnalysisStreamingRunner implements Serializable {
 		JavaPairDStream<String, String> date2cluster = clusters
 				.mapToPair(t -> new Tuple2<>(t.getClustertime() + "--" + t.getCluster(), t.getSymbol()));
 
-		JavaPairDStream<String, String> date2pair = date2cluster.reduceByKeyAndWindow((v1, v2) -> v1 + "::" + v2,
+		JavaPairDStream<String, String> date2pair = date2cluster.reduceByKeyAndWindow((v1, v2) -> v1 + " | " + v2,
 				windowDuration);
 
 		JavaPairDStream<String, Integer> stocks2one = date2pair.mapToPair(t -> new Tuple2<>(t._2(), new Integer(1)));
@@ -407,7 +407,10 @@ public class AnalysisStreamingRunner implements Serializable {
 
 	public void printSameTrendStock(JavaDStream<StockCluster> clusters, int topK) {
 		getSimilarStocks(clusters).mapToPair(t -> new Tuple2<>(t._2(), t._1()))
-				.foreachRDD(rdd -> rdd.sortByKey(false).take(topK).forEach(t -> System.out.println(t)));
+				.foreachRDD(rdd -> rdd.sortByKey(false).take(topK).forEach(t -> {
+					if (t._2().contains("|"))
+						System.out.println(t);
+				}));
 	}
 
 	/* GETTERS & SETTERS */
