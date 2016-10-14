@@ -1,4 +1,6 @@
 # finance-spark-from-kafka
+Andrea Bergonzo & [Luca Massuda] (https://github.com/Massuda)
+
 Using Spark Streaming and Spark Batch to analyze stock prices.
 
 ## Run Spark Streaming
